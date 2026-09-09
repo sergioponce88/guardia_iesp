@@ -10,7 +10,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Base de datos SQLite
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -20,7 +19,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Estructuras base
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS libro_guardia (
@@ -47,7 +45,6 @@ db.serialize(() => {
   `);
 });
 
-// Proxy de foto oficial DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -86,7 +83,21 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-// Búsqueda inteligente amplia y tolerante
+// Endpoint general para traer a TODO el personal y cadetes sin límite restrictivo
+app.get('/api/personal-completo', (req, res) => {
+  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
+    if (err || !tablas || tablas.length === 0) return res.json([]);
+    const nombreTabla = tablas.find(t => 
+      ['personas', 'personal', 'cadetes', 'fuerza', 'integrantes'].includes(t.name.toLowerCase())
+    )?.name || tablas.find(t => t.name !== 'libro_guardia' && t.name !== 'configuracion_guardia')?.name || tablas[0].name;
+
+    db.all(`SELECT * FROM ${nombreTabla} ORDER BY id ASC`, [], (e, filas) => {
+      if (e) return res.json([]);
+      res.json(filas || []);
+    });
+  });
+});
+
 app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -110,12 +121,12 @@ app.get('/api/buscar', (req, res) => {
 
       if (palabras.length > 1) {
         const subWheres = palabras.map(() => `(${where})`).join(' AND ');
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 50`;
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 100`;
         palabras.forEach(p => {
           campos.forEach(() => paramsFinal.push(`%${p}%`));
         });
       } else {
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 50`;
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 100`;
         paramsFinal = Array(campos.length).fill(`%${q}%`);
       }
 
@@ -127,7 +138,6 @@ app.get('/api/buscar', (req, res) => {
   });
 });
 
-// Listado profundo de vehículos
 app.get('/api/vehiculos', (req, res) => {
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], async (err, tablas) => {
     if (err || !tablas || tablas.length === 0) return res.json([]);
@@ -137,7 +147,7 @@ app.get('/api/vehiculos', (req, res) => {
       if (['libro_guardia', 'configuracion_guardia'].includes(t.name)) continue;
 
       const filas = await new Promise((resolve) => {
-        db.all(`SELECT * FROM ${t.name} LIMIT 300`, [], (e, rows) => resolve(rows || []));
+        db.all(`SELECT * FROM ${t.name}`, [], (e, rows) => resolve(rows || []));
       });
 
       filas.forEach(f => {
@@ -174,7 +184,6 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// Actualizar datos de persona, vehículo o credencial por ID
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol } = req.body;
   
@@ -189,10 +198,7 @@ app.put('/api/personas/:id', (req, res) => {
     if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
     if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
     if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
-    if (cargo_chapa !== undefined) { 
-      updates.push("cargo_chapa = ?"); 
-      params.push(cargo_chapa); 
-    }
+    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
     if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
     if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
 
@@ -208,7 +214,6 @@ app.put('/api/personas/:id', (req, res) => {
   });
 });
 
-// Alta de nueva persona
 app.post('/api/personas', (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
@@ -226,7 +231,6 @@ app.post('/api/personas', (req, res) => {
   });
 });
 
-// Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
@@ -264,7 +268,6 @@ app.post('/api/libro-guardia/marcar-enviados', (req, res) => {
   });
 });
 
-// Fuerza presente
 app.get('/api/fuerza-presente', (req, res) => {
   const hoy = `${new Date().toISOString().split('T')[0]}%`;
   const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
@@ -303,7 +306,6 @@ app.get('/api/fuerza-presente', (req, res) => {
   });
 });
 
-// Configuración
 app.get('/api/configuracion/:clave', (req, res) => {
   db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
     res.json({ valor: fila ? fila.valor : null });

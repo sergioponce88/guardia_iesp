@@ -6,7 +6,6 @@
   <title>I.E.S.P. "Gral. San Martín" - Control de Guardia</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Biblioteca de decodificación QR ultra rápida y ligera -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -104,7 +103,7 @@
             <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
           </div>
 
-          <!-- BOTÓN SCANNER QR DIRECTO A CÁMARA -->
+          <!-- BOTÓN SCANNER CÁMARA REAL -->
           <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 rounded text-xs flex items-center justify-center shadow transition-colors">
             <i class="fa-solid fa-camera mr-2 text-base"></i> Abrir Cámara para Escanear QR
           </button>
@@ -140,7 +139,7 @@
                 <div class="flex items-center justify-between">
                   <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
                   <button id="btn-editar" onclick="abrirModalVehiculo()" class="text-[11px] text-blue-600 hover:underline flex items-center hidden font-semibold">
-                    <i class="fa-solid fa-pen mr-1"></i> Editar
+                    <i class="fa-solid fa-pen mr-1"></i> Editar Vehículo
                   </button>
                 </div>
                 <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
@@ -268,7 +267,6 @@
       
       <p class="text-xs text-slate-500">Apuntá el código QR oficial de la credencial frente a la cámara.</p>
 
-      <!-- Visor de Video Directo -->
       <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border-2 border-blue-500 shadow-inner">
         <video id="video-qr" class="w-full h-full object-cover" playsinline autoplay muted></video>
         <canvas id="canvas-qr" class="hidden"></canvas>
@@ -424,9 +422,6 @@
       cargarOficialServicio();
     }
 
-    // ==========================================
-    // CÁMARA REAL EN TIEMPO REAL (MEDIA DEVICES)
-    // ==========================================
     async function iniciarCamaraQR() {
       const modal = document.getElementById('modal-scanner');
       const video = document.getElementById('video-qr');
@@ -451,7 +446,7 @@
       } catch (err) {
         console.error("Error al acceder a la cámara:", err);
         statusText.innerText = "Error: no se pudo iniciar la cámara.";
-        alert("No se pudo iniciar la cámara. Verifique que haya otorgado permisos en su navegador.");
+        alert("No se pudo iniciar la cámara. Verifique permisos.");
         cerrarCamaraQR();
       }
     }
@@ -476,7 +471,6 @@
             });
 
             if (code && code.data) {
-              console.log("QR Detectado:", code.data);
               cerrarCamaraQR();
               procesarLecturaQR(code.data);
               return;
@@ -772,7 +766,6 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
-    // Modales
     function abrirModalOficial() {
       document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
       document.getElementById('modal-oficial').classList.remove('hidden');
@@ -800,22 +793,40 @@
       document.getElementById('modal-vehiculo').classList.remove('hidden');
     }
     function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
+    
     async function guardarVehiculoPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) return;
-
       const modelo = document.getElementById('vehiculo-modelo-input').value.trim();
       const patente = document.getElementById('vehiculo-patente-input').value.trim().toUpperCase();
 
-      await fetch(`/api/personas/${personaSeleccionada.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
-      });
+      if (!personaSeleccionada.id) {
+        const resAlta = await fetch('/api/personas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dni: personaSeleccionada.dni || 'S/D',
+            nombre_completo: personaSeleccionada.nombre_completo || 'Personal',
+            jerarquia_rol: personaSeleccionada.jerarquia_rol || 'Personal',
+            cargo_chapa: personaSeleccionada.cargo_chapa || 'S/D',
+            credencial_url: personaSeleccionada.credencial_url,
+            vehiculo_modelo: modelo,
+            vehiculo_patente: patente
+          })
+        });
+        const dataAlta = await resAlta.json();
+        if (dataAlta.success) personaSeleccionada.id = dataAlta.id;
+      } else {
+        await fetch(`/api/personas/${personaSeleccionada.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
+        });
+      }
 
       personaSeleccionada.patente_detectada = patente;
       personaSeleccionada.modelo_detectado = modelo;
       seleccionarPersona(personaSeleccionada);
       cerrarModalVehiculo();
+      alert('Vehículo asignado y guardado correctamente.');
     }
 
     async function abrirModalListaVehiculos() {

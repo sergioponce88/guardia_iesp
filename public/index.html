@@ -139,7 +139,7 @@
                 <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
                 <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
                 <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
-                <!-- Botones de Edición Personal ubicados ordenadamente debajo -->
+                <!-- Botón de Edición Personal -->
                 <div class="flex space-x-2 mt-1">
                   <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold">
                     <i class="fa-solid fa-user-pen"></i> Editar Datos
@@ -154,8 +154,11 @@
 
             <!-- Credencial Oficial -->
             <div class="space-y-1">
-              <div class="flex justify-between text-[11px]">
+              <div class="flex justify-between items-center text-[11px]">
                 <span class="text-slate-600 font-semibold flex items-center"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial Digital Policial</span>
+                <button onclick="abrirModalCredencial()" class="text-[10px] text-blue-600 hover:underline font-semibold" title="Asociar o Cambiar Credencial QR">
+                  <i class="fa-solid fa-link"></i> <span id="txt-btn-cred">Asociar QR</span>
+                </button>
                 <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">Sin Enlace</span>
               </div>
               <a 
@@ -166,7 +169,6 @@
               >
                 Abrir Validación Oficial en Línea
               </a>
-              <!-- Botón rápido para guardar/asociar el QR escaneado al efectivo actual -->
               <button id="btn-asociar-qr" onclick="asociarQrAEfectivoActual()" class="hidden w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 rounded text-[11px] mt-1 shadow-sm transition-colors">
                 <i class="fa-solid fa-link mr-1"></i> Guardar QR en este Perfil
               </button>
@@ -284,7 +286,7 @@
     </div>
   </div>
 
-  <!-- Modal Directorio Fuerza Efectiva -->
+  <!-- Modal Listado Fuerza Efectiva -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -293,14 +295,14 @@
         </h3>
         <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
-      <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o legajo..." class="w-full border rounded p-2 text-xs outline-none">
+      <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="w-full border rounded p-2 text-xs outline-none">
       <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
             <tr>
               <th class="p-2">Apellido y Nombre</th>
               <th class="p-2">Jerarquía / Rol</th>
-              <th class="p-2">N° Legajo</th>
+              <th class="p-2">N° de Legajo</th>
               <th class="p-2 text-center">Acción</th>
             </tr>
           </thead>
@@ -309,6 +311,23 @@
       </div>
       <div class="flex justify-end">
         <button onclick="cerrarModalFuerzaEfectiva()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Asociar / Editar Credencial QR -->
+  <div id="modal-credencial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center">
+        <i class="fa-solid fa-id-card text-blue-600 mr-2"></i> Vincular Enlace de Credencial QR
+      </h3>
+      <div>
+        <label class="text-[11px] text-slate-500 block mb-1">Enlace completo de credencial oficial o Token</label>
+        <input type="text" id="input-credencial-url" class="w-full border rounded p-2 text-xs outline-none" placeholder="Ej: https://credenciales.dpd1.ar/publicoQR/abcdef1234">
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="cerrarModalCredencial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarCredencialPersona()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar Credencial</button>
       </div>
     </div>
   </div>
@@ -884,6 +903,50 @@
     }
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
+
+    function abrirModalCredencial() {
+      if (!personaSeleccionada) {
+        alert('Seleccione una persona primero.');
+        return;
+      }
+      document.getElementById('input-credencial-url').value = personaSeleccionada.credencial_url || '';
+      document.getElementById('modal-credencial').classList.remove('hidden');
+    }
+
+    function cerrarModalCredencial() {
+      document.getElementById('modal-credencial').classList.add('hidden');
+    }
+
+    async function guardarCredencialPersona() {
+      if (!personaSeleccionada || !personaSeleccionada.id) {
+        alert('Debe seleccionar un efectivo registrado en la base de datos.');
+        return;
+      }
+
+      let val = document.getElementById('input-credencial-url').value.trim();
+      if (!val) return;
+
+      if (!val.startsWith('http')) {
+        val = `https://credenciales.dpd1.ar/publicoQR/${val}`;
+      }
+
+      const hash = val.trim().split('/').pop().replace('#', '');
+
+      await fetch(`/api/personas/${personaSeleccionada.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credencial_url: val,
+          credencial_token: hash
+        })
+      });
+
+      personaSeleccionada.credencial_url = val;
+      personaSeleccionada.credencial_token = hash;
+      seleccionarPersona(personaSeleccionada);
+      cerrarModalCredencial();
+      alert('¡Credencial vinculada y guardada correctamente!');
+    }
 
     function abrirModalEditarPersona() {
       if (!personaSeleccionada) return;

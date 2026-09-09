@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Guardia de Prevención - IESP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    input, select, textarea, button { font-size: 16px !important; }
+
+    @keyframes pulse-demora {
+      0%, 100% { background-color: #fee2e2; border-color: #ef4444; }
+      50% { background-color: #fecaca; border-color: #b91c1c; }
+    }
+    .comision-demorada {
+      animation: pulse-demora 2s infinite ease-in-out;
+    }
+
+    @media print {
+      .no-print, header, #columnaOperacion, #modalRegistros, #modalEscanerQR, #modalVincularCredencial, #modalEditarPersona, #modalEditarVehiculo, #modalNuevaComision, #modalRegistrarVehiculoRapido, #modalNuevoIntegrante, #modalOficialServicio, #seccionFuerzaPresente, #bannerConsignaTurno {
+        display: none !important;
+      }
+
+      body, main {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+      }
+
+      #columnaLibro, #seccionLibroGuardia {
+        display: block !important;
+        visibility: visible !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 11px !important;
+      }
+
+      th, td {
+        border: 1px solid #333 !important;
+        padding: 4px 6px !important;
+        color: #000 !important;
+      }
+
+      thead tr {
+        background-color: #0f172a !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans pb-12">
+
+  <!-- CABECERA -->
+  <header class="bg-slate-900 text-white p-3 shadow sticky top-0 z-30 no-print">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="font-bold text-sm sm:text-base leading-tight">I.E.S.P. "Gral. San Martín"</h1>
+          <p class="text-[11px] text-slate-400">Control de Guardia</p>
+        </div>
+        <div class="flex items-center bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+          <span class="text-xs text-amber-400 font-bold mr-1">📍 Puesto:</span>
+          <select id="puestoSelect" class="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer">
+            <option value="Puesto 1">Puesto 1 (Principal)</option>
+            <option value="Puesto 2">Puesto 2 (Portón Sec.)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+        <button onclick="abrirModalOficialServicio()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-2 rounded-lg font-bold shadow flex items-center space-x-1.5 border border-amber-500">
+          <span>🎖️</span>
+          <span>Oficial de Servicio</span>
+        </button>
+        <button onclick="abrirModalRegistros('personas')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-lg font-bold shadow flex items-center space-x-1">
+          <span>👥</span>
+          <span>Fuerza Efectiva (<span id="btnHeaderTotalPersonas">...</span>)</span>
+        </button>
+        <button onclick="abrirModalRegistros('vehiculos')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-lg font-bold shadow flex items-center space-x-1">
+          <span>🚗</span>
+          <span>Vehículos</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- BANNER DE CONSIGNAS Y OFICIAL DE SERVICIO DE TURNO -->
+  <div id="bannerConsignaTurno" class="bg-slate-800 text-white border-b border-slate-700 px-3 py-2 no-print shadow-inner text-xs">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+      <div class="flex items-center space-x-2">
+        <span class="bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">OFICIAL DE SERVICIO</span>
+        <span id="badgeNombreOficial" class="font-bold text-amber-200">Sin Asignar (Clic en 🎖️ Oficial de Servicio)</span>
+      </div>
+      <div class="flex items-center space-x-2 text-slate-300 truncate">
+        <span class="text-slate-400 font-semibold">Consigna del Turno:</span>
+        <span id="badgeConsignaTurno" class="italic text-white truncate">Sin consignas especiales emitidas.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑAS MÓVILES -->
+  <div class="lg:hidden bg-white border-b sticky top-[92px] z-20 px-2 py-1.5 flex gap-1 shadow-sm no-print">
+    <button onclick="cambiarSeccionMovil('operacion')" id="btnTabOperacion" class="flex-1 py-2 text-xs font-bold text-center rounded bg-indigo-600 text-white shadow">
+      ⚡ Control Accesos
+    </button>
+    <button onclick="cambiarSeccionMovil('libro')" id="btnTabLibro" class="flex-1 py-2 text-xs font-bold text-center rounded bg-slate-100 text-slate-700 border">
+      📖 Libro en Vivo
+    </button>
+  </div>
+
+  <main class="max-w-7xl mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+    
+    <!-- TABLERO EN VIVO: FUERZA EFECTIVA PRESENTE EN EL INSTITUTO -->
+    <section id="seccionFuerzaPresente" class="col-span-1 lg:col-span-12 bg-white rounded-xl p-3 border border-slate-200 shadow-sm no-print">
+      <div class="flex items-center justify-between mb-2 pb-1.5 border-b">
+        <div class="flex items-center space-x-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <h2 class="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-wide">
+            Fuerza Efectiva en el Instituto (Tiempo Real)
+          </h2>
+        </div>
+        <button onclick="cargarFuerzaPresente()" class="text-[11px] text-indigo-600 font-bold hover:underline">
+          🔄 Actualizar
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
+        <div class="bg-indigo-50 border border-indigo-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-indigo-700 uppercase block">Planta Policial</span>
+          <span class="text-base sm:text-lg font-black text-indigo-950" id="fpPlanta">-- / --</span>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-blue-700 uppercase block">Cadetes 1° Año</span>
+          <span class="text-base sm:text-lg font-black text-blue-950" id="fpCad1">-- / --</span>
+        </div>
+        <div class="bg-sky-50 border border-sky-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-sky-700 uppercase block">Cadetes 2° Año</span>
+          <span class="text-base sm:text-lg font-black text-sky-950" id="fpCad2">-- / --</span>
+        </div>
+        <div class="bg-cyan-50 border border-cyan-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-cyan-700 uppercase block">Cadetes 3° Año</span>
+          <span class="text-base sm:text-lg font-black text-cyan-950" id="fpCad3">-- / --</span>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-emerald-700 uppercase block">Vehículos en Predio</span>
+          <span class="text-base sm:text-lg font-black text-emerald-950" id="fpVehiculos">--</span>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 p-2 rounded-lg">
+          <span class="text-[10px] font-bold text-amber-700 uppercase block">Comisiones Ext.</span>
+          <span class="text-base sm:text-lg font-black text-amber-950" id="fpComisiones">--</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMNA 1: OPERACIÓN RÁPIDA -->
+    <section id="columnaOperacion" class="lg:col-span-5 space-y-3 no-print">
+      
+      <!-- 1. PASE RÁPIDO DE PERSONAL Y ESCÁNER QR -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex justify-between items-center mb-2 border-b pb-1.5">
+          <h2 class="font-bold text-xs sm:text-sm text-slate-800 flex items-center gap-1">
+            <span>👮</span> 1. Ingreso / Egreso Personal, Cadetes y Visitas
+          </h2>
+          <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono font-bold">Fuerza Activa</span>
+        </div>
+
+        <button onclick="iniciarEscanerQR()" class="w-full mb-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 active:from-blue-900 active:to-indigo-900 text-white font-bold py-2.5 px-3 rounded-xl shadow flex items-center justify-center space-x-2">
+          <span class="text-lg">📷</span>
+          <span class="text-xs sm:text-sm">Escanear QR de Credencial</span>
+        </button>
+
+        <button onclick="abrirIngresoManualQR()" type="button" class="w-full mb-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-semibold py-1.5 px-3 rounded-lg text-xs flex items-center justify-center space-x-1.5">
+          <span>⌨️</span>
+          <span>Pegar Enlace o Código QR Manualmente</span>
+        </button>
+
+        <div class="flex gap-1.5 mb-2">
+          <input type="text" id="busquedaInput" placeholder="Busque por DNI, Apellido, Chapa o Grado..." 
+                 class="flex-1 border-2 border-indigo-200 rounded-lg p-2.5 text-sm focus:border-indigo-600 focus:outline-none" 
+                 oninput="buscarPersona(this.value)">
+          <button onclick="abrirModalNuevoIntegrante()" title="Dar de alta nuevo integrante" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 font-bold px-3 py-2 rounded-lg text-xs flex items-center space-x-1">
+            <span>➕</span>
+            <span class="hidden sm:inline">Nuevo</span>
+          </button>
+        </div>
+
+        <div id="resultadosBusqueda" class="divide-y border rounded-lg max-h-48 overflow-y-auto mb-2 hidden bg-white shadow-lg"></div>
+
+        <!-- TARJETA INTELIGENTE DE LA PERSONA CON FOTO OFICIAL -->
+        <div id="personaSeleccionada" class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl mb-2 hidden space-y-2.5">
+          
+          <div class="flex items-start justify-between border-b border-indigo-100 pb-2.5">
+            <!-- FOTO DEL EFECTIVO / CADETE -->
+            <div class="flex items-center space-x-3">
+              <div class="relative w-16 h-20 bg-slate-200 border-2 border-indigo-300 rounded-lg overflow-hidden flex items-center justify-center shadow-sm flex-shrink-0">
+                <img id="cardFotoPerfil" src="" alt="Foto Oficial" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('cardIconoSinFoto').classList.remove('hidden');">
+                <span id="cardIconoSinFoto" class="text-3xl text-slate-400">👤</span>
+              </div>
+              <div>
+                <p class="font-bold text-slate-900 text-sm leading-snug" id="cardNombre">-</p>
+                <p class="text-slate-600 text-xs mt-0.5" id="cardJerarquia">-</p>
+                <p class="text-slate-500 font-mono text-[11px] mt-0.5" id="cardDniRef">-</p>
+              </div>
+            </div>
+
+            <div class="flex flex-col items-end space-y-1">
+              <button onclick="deseleccionarPersona()" class="text-slate-400 hover:text-red-500 text-sm font-bold p-1 leading-none">✕</button>
+              <button onclick="abrirModalEditarPersonaDesdeCard()" title="Modificar datos del integrante" class="text-indigo-600 hover:text-indigo-900 bg-white border border-indigo-200 px-2 py-0.5 rounded text-[11px] font-bold shadow-sm">
+                ✏️ Editar
+              </button>
+            </div>
+          </div>
+
+          <input type="hidden" id="selectedPersonaId">
+
+          <!-- INDICADOR VISUAL DE ESTADO ADENTRO / AFUERA (ANTI-PASSBACK) -->
+          <div id="badgeEstadoUbicacion" class="py-1 px-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-slate-100 text-slate-700 border">
+            <span id="textoEstadoUbicacion">Consultando estado...</span>
+            <span id="horaEstadoUbicacion" class="font-mono text-[11px] text-slate-500"></span>
+          </div>
+
+          <!-- FICHA DETALLADA DE LA CREDENCIAL QR OFICIAL -->
+          <div id="fichaCredencialQR" class="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs space-y-1.5 hidden">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-blue-900 flex items-center gap-1">
+                <span>🛡️</span> Credencial Digital Policial
+              </span>
+              <span class="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]" id="qrTokenBadge">-</span>
+            </div>
+            <div class="text-[11px] text-slate-600 truncate">
+              <span class="font-semibold text-slate-700">Enlace oficial:</span> 
+              <a id="qrUrlEnlace" href="#" target="_blank" class="text-blue-600 underline font-mono break-all">-</a>
+            </div>
+            <a id="btnVerCredencialOficial" href="#" target="_blank" class="inline-flex items-center justify-center w-full py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded font-bold text-[11px] shadow-sm">
+              🔗 Abrir Validación Oficial en Línea
+            </a>
+          </div>
+
+          <!-- ESTADO DEL VEHÍCULO ASOCIADO -->
+          <div id="contenedorVehiculoAsociado" class="p-2.5 bg-white rounded-lg border border-indigo-200 text-xs shadow-sm">
+            <div id="bloqueConVehiculo" class="hidden">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-bold text-slate-500 uppercase">Vehículo Registrado:</span>
+                <span class="font-mono font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300" id="cardEfectivoDominio">-</span>
+              </div>
+              <p class="text-slate-700 font-semibold mb-2" id="cardEfectivoModelo">-</p>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button onclick="marcarAccesoCombinado('INGRESO', true)" class="bg-emerald-600 active:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow flex items-center justify-center space-x-1">
+                  <span>🚗</span>
+                  <span>Ingreso c/ Móvil</span>
+                </button>
+                <button onclick="marcarAccesoCombinado('EGRESO', true)" class="bg-slate-700 active:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs shadow flex items-center justify-center space-x-1">
+                  <span>🚗</span>
+                  <span>Egreso c/ Móvil</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="bloqueSinVehiculo" class="text-center py-1">
+              <p class="text-slate-500 text-[11px] mb-1.5">Sin vehículo declarado a su nombre</p>
+              <button onclick="abrirModalRegistrarVehiculoRapido()" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 font-bold py-1.5 rounded-lg text-xs flex items-center justify-center space-x-1">
+                <span>➕</span>
+                <span>Declarar / Registrar Vehículo Ahora</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- BOTONES PASE A PIE -->
+          <div class="pt-1">
+            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">O pase peatonal (a pie):</span>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="marcarAccesoCombinado('INGRESO', false)" class="bg-green-600 active:bg-green-700 text-white font-bold py-2 rounded-lg text-xs shadow">
+                🟢 Ingreso a Pie
+              </button>
+              <button onclick="marcarAccesoCombinado('EGRESO', false)" class="bg-rose-600 active:bg-rose-700 text-white font-bold py-2 rounded-lg text-xs shadow">
+                🔴 Egreso a Pie
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. CONTROL DE VEHÍCULOS POR PATENTE -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-600">
+        <h2 class="font-bold text-xs sm:text-sm text-slate-800 mb-2 border-b pb-1.5 flex items-center gap-1">
+          <span>🚗</span> 2. Control de Vehículo Registrado (Por Patente)
+        </h2>
+
+        <input type="text" id="busquedaVehiculoInput" placeholder="Patente o Apellido Titular..." 
+               class="w-full border-2 border-emerald-200 rounded-lg p-2.5 text-sm uppercase focus:border-emerald-600 focus:outline-none mb-2" 
+               oninput="buscarVehiculoEnGuardia(this.value)">
+
+        <div id="resultadosBusquedaVehiculo" class="divide-y border rounded-lg max-h-44 overflow-y-auto mb-2 hidden bg-white shadow-lg"></div>
+
+        <div id="vehiculoSeleccionado" class="p-3 bg-emerald-50 border border-emerald-300 rounded-lg mb-2 hidden">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono font-extrabold bg-white px-2 py-1 rounded border text-emerald-800 text-sm shadow-sm" id="cardVehDominio">-</span>
+            <span class="font-semibold text-slate-700 text-xs" id="cardVehModelo">-</span>
+          </div>
+          <p class="font-bold text-slate-900 text-xs" id="cardVehTitular">-</p>
+          <p class="text-slate-600 text-[11px]" id="cardVehJerarquia">-</p>
+
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button onclick="registrarAccesoVehiculo('INGRESO')" class="bg-emerald-600 active:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow">
+              Ingreso Móvil
+            </button>
+            <button onclick="registrarAccesoVehiculo('EGRESO')" class="bg-slate-700 active:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs shadow">
+              Egreso Móvil
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTÓN COMISIÓN -->
+      <div>
+        <button onclick="abrirModalNuevaComision()" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm py-3 rounded-xl font-bold shadow flex items-center justify-center space-x-2">
+          <span class="text-base">🚀</span>
+          <span>Salida de Comisión / Práctica / Médico</span>
+        </button>
+      </div>
+
+      <!-- 3. VISITAS / LOGÍSTICA -->
+      <details class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+        <summary class="font-bold text-xs sm:text-sm text-slate-700 cursor-pointer select-none">
+          📋 Asentar Visita Casual / Proveedor / Carga
+        </summary>
+        <form id="formLogistica" onsubmit="guardarLogistica(event)" class="space-y-2.5 mt-2.5 pt-2 border-t text-xs">
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-600">Tipo de Evento:</label>
+            <select id="logTipo" class="w-full border rounded-lg p-2 font-semibold bg-white">
+              <option value="VISITA CASUAL">Visita Casual / Trámite</option>
+              <option value="PROVEEDOR">Proveedor (Agua, Panadería, Carnicería)</option>
+              <option value="LOGÍSTICA / MATERIAL">Carga / Materiales / Vajilla</option>
+            </select>
+          </div>
+          <input type="text" id="logNombre" placeholder="Apellido y Nombres *" required class="w-full border rounded-lg p-2 uppercase bg-white">
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="logDni" placeholder="DNI (sin puntos)" class="w-full border rounded-lg p-2 font-mono bg-white">
+            <input type="text" id="logDominio" placeholder="Patente / Móvil" class="w-full border rounded-lg p-2 uppercase font-mono bg-white">
+          </div>
+          <textarea id="logDetalle" placeholder="Detalle: (ej. Deja 30 bidones de agua / Retira vajilla) *" required class="w-full border rounded-lg p-2 h-16 bg-white"></textarea>
+          <p class="text-[10px] text-slate-400 italic">💡 Esta persona quedará guardada en la Fuerza Efectiva para reconocerla por DNI en su próxima visita.</p>
+          <button type="submit" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-lg shadow">
+            Asentar en Libro de Guardia
+          </button>
+        </form>
+      </details>
+    </section>
+
+    <!-- COLUMNA 2: LIBRO DE GUARDIA CRONOLÓGICO -->
+    <section id="columnaLibro" class="lg:col-span-7 space-y-3 hidden lg:block">
+      <div id="seccionLibroGuardia" class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-3 mb-3 gap-2">
+          <div>
+            <h2 class="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-1.5">
+              <span>📖</span> LIBRO DE GUARDIA (EN VIVO)
+            </h2>
+            <p class="text-[11px] text-slate-500">Orden cronológico minuto a minuto</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 no-print">
+            <input type="date" id="filtroFecha" onchange="cargarLibroGuardia()" class="border rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-slate-50">
+            <button onclick="enviarNovedadesSeleccionadasWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow flex items-center space-x-1.5" title="Enviar sólo las filas con tilde">
+              <span>📲</span>
+              <span>Enviar Seleccionados</span>
+            </button>
+            <button onclick="enviarInformeCompletoWhatsApp()" class="bg-slate-700 hover:bg-slate-900 active:bg-black text-white text-xs px-2.5 py-1.5 rounded-lg font-bold shadow" title="Enviar balance completo del día">
+              <span>📋 Todo el Día</span>
+            </button>
+            <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-950 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold shadow flex items-center space-x-1">
+              <span>🖨️</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- COMISIONES ACTIVAS CON DETECCIÓN DE DEMORAS -->
+        <div id="contenedorComisionesActivas" class="mb-3 bg-amber-50 border border-amber-300 rounded-lg p-2.5 hidden text-xs">
+          <p class="font-bold text-amber-900 mb-1">⏳ Comisiones en Curso (Pendientes de Regreso):</p>
+          <div id="listaComisionesActivas" class="space-y-1.5"></div>
+        </div>
+
+        <div class="overflow-x-auto -mx-3 sm:mx-0">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-white">
+                <th class="p-2 sm:p-2.5 text-center w-8 no-print">
+                  <input type="checkbox" id="checkTodosLibro" onchange="alternarSeleccionTodos(this.checked)" title="Marcar todos" class="cursor-pointer">
+                </th>
+                <th class="p-2 sm:p-2.5 font-mono text-center w-14">HORA</th>
+                <th class="p-2 sm:p-2.5 w-24">PUESTO</th>
+                <th class="p-2 sm:p-2.5 w-24">EVENTO</th>
+                <th class="p-2 sm:p-2.5">PROTAGONISTA</th>
+                <th class="p-2 sm:p-2.5">DETALLE</th>
+                <th class="p-2 sm:p-2.5 text-center w-24 no-print">WHATSAPP / ACCIÓN</th>
+              </tr>
+            </thead>
+            <tbody id="tablaLibroGuardia" class="divide-y border">
+              <tr>
+                <td colspan="7" class="p-4 text-center text-slate-400">Cargando registros...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-3 pt-2 border-t text-[11px] text-slate-500 flex justify-between items-center">
+          <span>Puesto activo: <strong id="indicadorPuestoActual">Puesto 1</strong></span>
+          <span>Asientos válidos hoy: <strong id="totalRegistrosDia" class="text-slate-800">0</strong></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: PANEL DE COMANDO DEL OFICIAL DE SERVICIO -->
+  <div id="modalOficialServicio" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border">
+      <div class="bg-amber-700 text-white px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🎖️</span>
+          <div>
+            <h3 class="font-bold text-sm">Comando del Oficial de Servicio</h3>
+            <p class="text-[10px] text-amber-200">Acciones de Mando y Parámetros de Guardia</p>
+          </div>
+        </div>
+        <button onclick="cerrarModalOficialServicio()" class="text-amber-200 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <div class="p-4 space-y-4 text-xs max-h-[85vh] overflow-y-auto">
+        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2">
+          <label class="block font-bold text-amber-950 uppercase tracking-wide">1. Oficial de Servicio a Cargo:</label>
+          <div class="flex gap-2">
+            <input type="text" id="cfgOficialNombre" placeholder="Ej: Ofic. Ppal. PÉREZ, Juan" class="flex-1 border rounded-lg p-2 font-bold uppercase bg-white">
+            <button onclick="guardarOficialServicioTurno()" class="bg-amber-800 hover:bg-amber-900 active:bg-black text-white px-3 py-2 rounded-lg font-bold">
+              Asignar
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
+          <label class="block font-bold text-slate-800 uppercase tracking-wide">2. Horario Límite Regreso de Franco (Cadetes):</label>
+          <p class="text-[11px] text-slate-500">Todo cadete que ingrese después de este horario quedará sellado en el libro con <strong class="text-amber-700">RETARDO</strong>.</p>
+          <div class="flex gap-2">
+            <input type="datetime-local" id="cfgLimiteFranco" class="flex-1 border rounded-lg p-2 font-semibold bg-white">
+            <button onclick="guardarLimiteFrancoDesdePanel()" class="bg-slate-800 hover:bg-slate-900 active:bg-black text-white px-3 py-2 rounded-lg font-bold">
+              Fijar Hora
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
+          <label class="block font-bold text-slate-800 uppercase tracking-wide">3. Directiva / Consigna General del Turno:</label>
+          <p class="text-[11px] text-slate-500">Se proyectará de inmediato en el banner de la cabecera para todos los puestos.</p>
+          <textarea id="cfgConsignaTurno" placeholder="Ej: Mantener portón secundario cerrado salvo autorización expresa..." class="w-full border rounded-lg p-2 h-16 bg-white"></textarea>
+          <button onclick="guardarConsignaTurno()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg shadow">
+            Publicar Consigna a la Guardia
+          </button>
+        </div>
+
+        <details class="bg-slate-100 border border-slate-300 p-3 rounded-xl">
+          <summary class="font-bold text-slate-800 cursor-pointer select-none">
+            ✍️ Asentar Acto Directo de Servicio / Inspección en el Libro
+          </summary>
+          <div class="space-y-2 pt-2 mt-2 border-t text-xs">
+            <input type="text" id="actoTitulo" placeholder="Título (ej: RONDA DE INSPECCIÓN / RELEVO DE PUESTOS)" class="w-full border rounded-lg p-2 uppercase font-bold bg-white">
+            <textarea id="actoDetalle" placeholder="Detalle formal de la novedad o disposición..." class="w-full border rounded-lg p-2 h-16 bg-white"></textarea>
+            <button onclick="asentarActoOficialServicio()" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-2 rounded-lg shadow">
+              Registrar en Libro de Guardia
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <div class="p-3 bg-slate-100 border-t flex justify-end">
+        <button onclick="cerrarModalOficialServicio()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 font-bold px-4 py-2 rounded-lg text-xs">
+          Cerrar Panel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR NUEVO INTEGRANTE -->
+  <div id="modalNuevoIntegrante" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+      <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Alta de Nuevo Integrante</h3>
+          <p class="text-[10px] text-slate-400">Fuerza Efectiva Oficial IESP</p>
+        </div>
+        <button onclick="cerrarModalNuevoIntegrante()" class="text-slate-400 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="formNuevoIntegrante" onsubmit="guardarNuevoIntegrante(event)" class="p-4 space-y-3 text-xs">
+        <input type="hidden" id="nuevoPerVincularQR" value="false">
+
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Tipo de Integrante *</label>
+          <select id="nuevoPerTipo" onchange="adaptarFormularioNuevo(this.value)" class="w-full border rounded-lg p-2 font-bold bg-white text-indigo-900">
+            <option value="CADETE">CADETE</option>
+            <option value="PERSONAL">PERSONAL POLICIAL (PLANTA PERMANENTE)</option>
+            <option value="CIVIL / DOCENTE">CIVIL / DOCENTE</option>
+            <option value="VISITANTE">VISITANTE / PROVEEDOR RECURRENTE</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">Jerarquía / Curso *</label>
+            <select id="nuevoPerJerarquiaSelect" class="w-full border rounded-lg p-2 font-semibold bg-white">
+              <option value="Cadete 1° Año">Cadete 1° Año</option>
+              <option value="Cadete 2° Año">Cadete 2° Año</option>
+              <option value="Cadete 3° Año">Cadete 3° Año</option>
+            </select>
+            <input type="text" id="nuevoPerJerarquiaInput" placeholder="Ej: Ofic. Ppal, Sargento..." class="w-full border rounded-lg p-2 bg-white hidden">
+          </div>
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">Chapa / Cargo</label>
+            <input type="text" id="nuevoPerChapa" placeholder="Ej: 20505 o Chapa" class="w-full border rounded-lg p-2 font-mono bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Apellido y Nombres Completos *</label>
+          <input type="text" id="nuevoPerNombre" required placeholder="APELLIDO, Nombres" class="w-full border-2 border-indigo-200 rounded-lg p-2 uppercase font-bold text-slate-900 bg-white">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">DNI</label>
+            <input type="text" id="nuevoPerDni" placeholder="Sin puntos" class="w-full border rounded-lg p-2 font-mono bg-white">
+          </div>
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">Destino / Área</label>
+            <input type="text" id="nuevoPerArea" value="Cuerpo de Cadetes" class="w-full border rounded-lg p-2 bg-white">
+          </div>
+        </div>
+
+        <div class="pt-2 grid grid-cols-2 gap-2">
+          <button type="button" onclick="cerrarModalNuevoIntegrante()" class="bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg">
+            Cancelar
+          </button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-2.5 rounded-lg shadow">
+            Guardar en Fuerza Efectiva
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR DATOS DE UN INTEGRANTE -->
+  <div id="modalEditarPersona" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+      <div class="bg-indigo-800 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Modificar Datos del Integrante</h3>
+          <p class="text-[10px] text-indigo-200">Guardia IESP</p>
+        </div>
+        <button onclick="cerrarModalEditarPersona()" class="text-indigo-200 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="formEditarPersona" onsubmit="guardarEdicionPersona(event)" class="p-4 space-y-3 text-xs">
+        <input type="hidden" id="editPerId">
+        
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Jerarquía / Grado / Rol *</label>
+          <input type="text" id="editPerJerarquia" required class="w-full border rounded-lg p-2 font-bold bg-white">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Apellido y Nombres Completos *</label>
+          <input type="text" id="editPerNombre" required class="w-full border rounded-lg p-2 uppercase font-bold bg-white">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">Chapa / Cargo</label>
+            <input type="text" id="editPerChapa" placeholder="Ej: 239 o Jefe Secret." class="w-full border rounded-lg p-2 bg-white">
+          </div>
+          <div>
+            <label class="block font-semibold mb-0.5 text-slate-700">DNI</label>
+            <input type="text" id="editPerDni" placeholder="DNI sin puntos" class="w-full border rounded-lg p-2 bg-white">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Área / Destino / División</label>
+          <input type="text" id="editPerArea" placeholder="Ej: Dirección, Alumnos, Cuerpo" class="w-full border rounded-lg p-2 bg-white">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Tipo de Personal</label>
+          <select id="editPerTipo" class="w-full border rounded-lg p-2 bg-white font-semibold">
+            <option value="PERSONAL">PERSONAL POLICIAL / PLANTA</option>
+            <option value="CADETE">CADETE</option>
+            <option value="CIVIL / DOCENTE">CIVIL / DOCENTE</option>
+            <option value="VISITANTE">VISITANTE</option>
+          </select>
+        </div>
+
+        <div class="pt-2 grid grid-cols-2 gap-2">
+          <button type="button" onclick="cerrarModalEditarPersona()" class="bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg">
+            Cancelar
+          </button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg shadow">
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR DATOS DE UN VEHÍCULO -->
+  <div id="modalEditarVehiculo" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+      <div class="bg-emerald-800 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Modificar Datos del Vehículo</h3>
+          <p class="text-[10px] text-emerald-200">Parque Automotor IESP</p>
+        </div>
+        <button onclick="cerrarModalEditarVehiculo()" class="text-emerald-200 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="formEditarVehiculo" onsubmit="guardarEdicionVehiculo(event)" class="p-4 space-y-3 text-xs">
+        <input type="hidden" id="editVehId">
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Dominio / Patente *</label>
+          <input type="text" id="editVehDominio" required class="w-full border-2 border-emerald-300 rounded-lg p-2 uppercase font-mono font-bold text-sm bg-white">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Titular *</label>
+          <input type="text" id="editVehTitular" required class="w-full border rounded-lg p-2 uppercase font-bold bg-white">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Jerarquía</label>
+          <input type="text" id="editVehJerarquia" class="w-full border rounded-lg p-2 bg-white">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Marca y Modelo</label>
+          <input type="text" id="editVehModelo" class="w-full border rounded-lg p-2 bg-white">
+        </div>
+
+        <div class="pt-2 grid grid-cols-2 gap-2">
+          <button type="button" onclick="cerrarModalEditarVehiculo()" class="bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg">
+            Cancelar
+          </button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg shadow">
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ESCÁNER QR -->
+  <div id="modalEscanerQR" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border">
+      <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Escaneando Credencial</h3>
+          <p class="text-[10px] text-slate-400">Apunte al código QR de la tarjeta</p>
+        </div>
+        <button onclick="detenerEscanerQR()" class="text-slate-400 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <div class="p-3">
+        <div id="readerQr" class="w-full rounded-lg overflow-hidden bg-black aspect-square"></div>
+        <p id="qrFeedback" class="text-center text-xs text-slate-500 mt-2 font-medium">Buscando código QR...</p>
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t">
+        <button onclick="detenerEscanerQR()" class="w-full bg-slate-200 active:bg-slate-300 text-slate-800 font-bold py-2 rounded-lg text-xs">
+          Cerrar Cámara
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VISUAL PARA VINCULAR LA CREDENCIAL POR PRIMERA VEZ -->
+  <div id="modalVincularCredencial" class="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border">
+      <div class="bg-indigo-700 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Credencial Nueva Detectada</h3>
+          <p class="text-[10px] text-indigo-200">ID: <span id="tokenVisual"></span></p>
+        </div>
+        <button onclick="cerrarModalVincularCredencial()" class="text-indigo-200 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <div class="p-3 space-y-2">
+        <p class="text-xs text-slate-600 font-medium">
+          Seleccione el efectivo en la fuerza efectiva para asociar esta credencial de forma permanente:
+        </p>
+        <input type="text" id="inputBuscarVinculo" placeholder="Escriba el apellido o DNI..." 
+               class="w-full border-2 border-indigo-200 rounded-lg p-2 text-xs focus:border-indigo-600 focus:outline-none"
+               oninput="buscarParaVincular(this.value)">
+
+        <div id="resultadosVinculo" class="border rounded-lg max-h-48 overflow-y-auto divide-y bg-slate-50"></div>
+      </div>
+
+      <div class="p-2.5 bg-slate-100 border-t">
+        <button onclick="cerrarModalVincularCredencial()" class="w-full bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg text-xs">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DECLARAR VEHÍCULO RÁPIDO -->
+  <div id="modalRegistrarVehiculoRapido" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border">
+      <div class="bg-emerald-700 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Registrar Vehículo del Efectivo</h3>
+          <p class="text-[10px] text-emerald-100">Se guardará permanentemente en la fuerza efectiva</p>
+        </div>
+        <button onclick="cerrarModalRegistrarVehiculoRapido()" class="text-emerald-200 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="formVehiculoRapido" onsubmit="guardarVehiculoRapido(event)" class="p-4 space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Titular:</label>
+          <input type="text" id="vehRapidoTitular" readonly class="w-full border rounded-lg p-2 bg-slate-100 font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Jerarquía / Grado:</label>
+          <input type="text" id="vehRapidoJerarquia" readonly class="w-full border rounded-lg p-2 bg-slate-100 text-slate-700">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Dominio / Patente *</label>
+          <input type="text" id="vehRapidoDominio" required placeholder="Ej: AF 123 CD" class="w-full border-2 border-emerald-300 rounded-lg p-2 uppercase font-mono font-bold text-sm focus:border-emerald-600 focus:outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold mb-0.5 text-slate-700">Marca y Modelo</label>
+          <input type="text" id="vehRapidoModelo" placeholder="Ej: Volkswagen Gol, Moto Honda 150" class="w-full border rounded-lg p-2">
+        </div>
+
+        <div class="pt-2 grid grid-cols-2 gap-2">
+          <button type="button" onclick="cerrarModalRegistrarVehiculoRapido()" class="bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg">
+            Cancelar
+          </button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg shadow">
+            Guardar y Asignar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL NUEVA COMISIÓN -->
+  <div id="modalNuevaComision" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border">
+      <div class="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm">Registrar Salida de Comisión / Servicio</h3>
+          <p class="text-[10px] text-slate-400">Guardia IESP</p>
+        </div>
+        <button onclick="cerrarModalNuevaComision()" class="text-slate-400 hover:text-white font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <form id="formComisionModal" onsubmit="enviarNuevaComision(event)" class="p-4 space-y-3 text-xs">
+        <div>
+          <label class="block mb-1 font-semibold text-slate-700">Tipo de Salida</label>
+          <select id="modalComTipo" class="w-full border rounded-lg p-2.5 bg-white font-medium">
+            <option value="Comisión de Servicio">Comisión de Servicio</option>
+            <option value="Consulta Médica / Fisioterapia">Consulta Médica / Fisioterapia</option>
+            <option value="Práctica Externa / Escuela">Práctica Externa / Escuela</option>
+            <option value="Donación de Sangre">Donación de Sangre</option>
+            <option value="Destreza / Ceremonial">Destreza / Ceremonial</option>
+            <option value="Zona Bancaria">Zona Bancaria</option>
+          </select>
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold text-slate-700">Destino *</label>
+          <input type="text" id="modalComDestino" required placeholder="Ej: Sanatorio 9 de Julio, Tribunales" class="w-full border rounded-lg p-2.5">
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold text-slate-700">Móvil / Vehículo Asignado</label>
+          <input type="text" id="modalComVehiculo" placeholder="Ej: Sprinter TUC 550, Particular, A pie" value="Móvil Sprinter" class="w-full border rounded-lg p-2.5">
+        </div>
+        <div>
+          <label class="block mb-1 font-semibold text-slate-700">Efectivos y Cadetes Afectados *</label>
+          <textarea id="modalComEfectivos" required placeholder="Detallar personal comisionado..." class="w-full border rounded-lg p-2.5 h-20"></textarea>
+        </div>
+        <div class="pt-2 grid grid-cols-2 gap-2">
+          <button type="button" onclick="cerrarModalNuevaComision()" class="bg-slate-200 text-slate-700 font-bold py-2.5 rounded-lg">
+            Cancelar
+          </button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow">
+            Asentar Salida
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: FUERZA EFECTIVA COMPLETA -->
+  <div id="modalRegistros" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border">
+      <div class="bg-slate-900 text-white px-3 py-2.5 flex justify-between items-center">
+        <div class="flex space-x-1 sm:space-x-2">
+          <button id="tabBtnPersonas" onclick="cambiarPestana('personas')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 shadow">
+            👥 Fuerza Efectiva (<span id="totalPersonasCount">314</span>)
+          </button>
+          <button id="tabBtnVehiculos" onclick="cambiarPestana('vehiculos')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300">
+            🚗 Vehículos (<span id="totalVehiculosCount">56</span>)
+          </button>
+        </div>
+        <button onclick="cerrarModalRegistros()" class="text-slate-400 hover:text-white font-bold text-xl px-2">&times;</button>
+      </div>
+
+      <div class="p-3 sm:p-4 overflow-y-auto flex-1 space-y-3">
+        <div id="vistaPersonas" class="space-y-3">
+          <div class="bg-slate-50 p-2.5 rounded-lg border flex flex-col gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-1 text-xs">
+              <div class="flex flex-wrap gap-1">
+                <button onclick="filtrarPorCategoria('TODOS')" id="filtroCatTodos" class="px-2 py-1 rounded font-bold bg-indigo-600 text-white">Todos</button>
+                <button onclick="filtrarPorCategoria('PERSONAL')" id="filtroCatPersonal" class="px-2 py-1 rounded font-semibold bg-white border">Planta (131)</button>
+                <button onclick="filtrarPorCategoria('Cadete 1° Año')" id="filtroCatCad1" class="px-2 py-1 rounded font-semibold bg-white border">Cadetes 1° (61)</button>
+                <button onclick="filtrarPorCategoria('Cadete 2° Año')" id="filtroCatCad2" class="px-2 py-1 rounded font-semibold bg-white border">Cadetes 2° (48)</button>
+                <button onclick="filtrarPorCategoria('Cadete 3° Año')" id="filtroCatCad3" class="px-2 py-1 rounded font-semibold bg-white border">Cadetes 3° (74)</button>
+              </div>
+              <button onclick="abrirModalNuevoIntegrante()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1 rounded text-xs shadow flex items-center space-x-1">
+                <span>➕</span>
+                <span>Alta Integrante</span>
+              </button>
+            </div>
+            <input type="text" id="filtroTextoPersonas" placeholder="🔍 Buscar por DNI, apellido, chapa o grado..." oninput="aplicarFiltrosPersonas()" 
+                   class="w-full border rounded-lg p-2 text-xs bg-white">
+          </div>
+
+          <div class="border rounded-lg max-h-80 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-800 text-white sticky top-0">
+                <tr>
+                  <th class="p-2 w-8 text-center">N°</th>
+                  <th class="p-2">Jerarquía</th>
+                  <th class="p-2">Apellido y Nombre</th>
+                  <th class="p-2 text-center">DNI / Chapa</th>
+                  <th class="p-2 text-center w-16">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaGestionPersonal" class="divide-y"></tbody>
+            </table>
+          </div>
+          <div class="text-[11px] text-slate-500 text-right">
+            Mostrando <span id="cantFiltradosPersonas" class="font-bold text-slate-800">0</span> integrantes
+          </div>
+        </div>
+
+        <div id="vistaVehiculos" class="space-y-3 hidden">
+          <input type="text" placeholder="🔍 Buscar patente o titular..." oninput="filtrarVehiculos(this.value)" class="w-full border rounded-lg p-2 text-xs bg-white">
+          <div class="border rounded-lg max-h-80 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-800 text-white sticky top-0">
+                <tr>
+                  <th class="p-2 font-mono">Dominio</th>
+                  <th class="p-2">Titular</th>
+                  <th class="p-2">Modelo</th>
+                  <th class="p-2 text-center w-16">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tablaGestionVehiculos" class="divide-y"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let personaSeleccionada = null;
+    let vehiculoSeleccionado = null;
+    let cachePersonas = [];
+    let cacheVehiculos = [];
+    let cacheLibroGuardia = [];
+    let categoriaActiva = 'TODOS';
+    let html5QrScanner = null;
+    let tokenDetectadoTemporal = null;
+    let escaneoEnProceso = false;
+    let asientosSeleccionados = new Set();
+    let limiteFrancoCadetes = null;
+
+    document.getElementById('filtroFecha').value = new Date().toISOString().slice(0, 10);
+
+    function cambiarSeccionMovil(seccion) {
+      const colOp = document.getElementById('columnaOperacion');
+      const colLib = document.getElementById('columnaLibro');
+      const btnOp = document.getElementById('btnTabOperacion');
+      const btnLib = document.getElementById('btnTabLibro');
+
+      if (seccion === 'operacion') {
+        colOp.classList.remove('hidden');
+        colLib.classList.add('hidden');
+        btnOp.className = 'flex-1 py-2 text-xs font-bold text-center rounded bg-indigo-600 text-white shadow';
+        btnLib.className = 'flex-1 py-2 text-xs font-bold text-center rounded bg-slate-100 text-slate-700 border';
+      } else {
+        colOp.classList.add('hidden');
+        colLib.classList.remove('hidden');
+        btnLib.className = 'flex-1 py-2 text-xs font-bold text-center rounded bg-indigo-600 text-white shadow';
+        btnOp.className = 'flex-1 py-2 text-xs font-bold text-center rounded bg-slate-100 text-slate-700 border';
+      }
+    }
+
+    document.getElementById('puestoSelect').addEventListener('change', (e) => {
+      document.getElementById('indicadorPuestoActual').innerText = e.target.value;
+    });
+
+    // --- PANEL DE COMANDO DEL OFICIAL DE SERVICIO ---
+    function abrirModalOficialServicio() {
+      document.getElementById('modalOficialServicio').classList.remove('hidden');
+      cargarParametrosOficialServicio();
+    }
+
+    function cerrarModalOficialServicio() {
+      document.getElementById('modalOficialServicio').classList.add('hidden');
+    }
+
+    async function cargarParametrosOficialServicio() {
+      try {
+        const res = await fetch('/api/config/oficial-servicio');
+        const data = await res.json();
+
+        if (data.oficial_servicio_actual) {
+          document.getElementById('cfgOficialNombre').value = data.oficial_servicio_actual;
+          document.getElementById('badgeNombreOficial').innerText = data.oficial_servicio_actual;
+        }
+        if (data.limite_franco_cadetes) {
+          document.getElementById('cfgLimiteFranco').value = data.limite_franco_cadetes;
+          limiteFrancoCadetes = new Date(data.limite_franco_cadetes);
+        }
+        if (data.consigna_turno_actual) {
+          document.getElementById('cfgConsignaTurno').value = data.consigna_turno_actual;
+          document.getElementById('badgeConsignaTurno').innerText = data.consigna_turno_actual;
+        }
+      } catch (e) {
+        console.error("Error al cargar parámetros de oficial:", e);
+      }
+    }
+
+    async function guardarOficialServicioTurno() {
+      const oficial = document.getElementById('cfgOficialNombre').value.trim().toUpperCase();
+      if (!oficial) return alert("Escriba la jerarquía, apellido y nombre del Oficial de Servicio.");
+
+      await fetch('/api/config/oficial-servicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oficial })
+      });
+      document.getElementById('badgeNombreOficial').innerText = oficial;
+      alert("✅ Oficial de Servicio asignado al turno correctamente.");
+    }
+
+    async function guardarLimiteFrancoDesdePanel() {
+      const limite = document.getElementById('cfgLimiteFranco').value;
+      if (!limite) return alert("Seleccione la fecha y hora límite de franco.");
+
+      await fetch('/api/config/oficial-servicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limite_franco: limite })
+      });
+      limiteFrancoCadetes = new Date(limite);
+      alert("✅ Límite de regreso de franco fijado.");
+    }
+
+    async function guardarConsignaTurno() {
+      const consigna = document.getElementById('cfgConsignaTurno').value.trim();
+      await fetch('/api/config/oficial-servicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consigna: consigna || 'Sin consignas especiales.' })
+      });
+      document.getElementById('badgeConsignaTurno').innerText = consigna || 'Sin consignas especiales.';
+      alert("✅ Consigna general publicada a todos los puestos.");
+    }
+
+    async function asentarActoOficialServicio() {
+      const titulo = document.getElementById('actoTitulo').value.trim().toUpperCase();
+      const detalle = document.getElementById('actoDetalle').value.trim();
+      if (!titulo || !detalle) return alert("Complete título y detalle del acto de servicio.");
+
+      await fetch('/api/oficial-servicio/asentar-acto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo, detalle })
+      });
+
+      document.getElementById('actoTitulo').value = '';
+      document.getElementById('actoDetalle').value = '';
+      alert("✅ Asentado con éxito en el Libro de Guardia.");
+      cerrarModalOficialServicio();
+      cargarLibroGuardia();
+    }
+
+    // --- CARGAR FUERZA PRESENTE EN TIEMPO REAL ---
+    async function cargarFuerzaPresente() {
+      try {
+        const res = await fetch('/api/fuerza-presente');
+        const d = await res.json();
+
+        document.getElementById('fpPlanta').innerText = `${d.presentes_planta || 0} / ${d.total_planta || 0}`;
+        document.getElementById('fpCad1').innerText = `${d.presentes_cad1 || 0} / ${d.total_cad1 || 0}`;
+        document.getElementById('fpCad2').innerText = `${d.presentes_cad2 || 0} / ${d.total_cad2 || 0}`;
+        document.getElementById('fpCad3').innerText = `${d.presentes_cad3 || 0} / ${d.total_cad3 || 0}`;
+        document.getElementById('fpVehiculos').innerText = `${d.vehiculos_adentro || 0}`;
+        document.getElementById('fpComisiones').innerText = `${d.comisiones_activas || 0}`;
+      } catch (e) {
+        console.error("Error al cargar fuerza presente:", e);
+      }
+    }
+
+    // --- ALTA RÁPIDA DE INTEGRANTE NUEVO ---
+    function abrirModalNuevoIntegrante(sugerenciaNombre = '', vincularQR = false) {
+      document.getElementById('modalNuevoIntegrante').classList.remove('hidden');
+      document.getElementById('nuevoPerNombre').value = sugerenciaNombre;
+      document.getElementById('nuevoPerVincularQR').value = vincularQR ? 'true' : 'false';
+      document.getElementById('nuevoPerTipo').value = 'CADETE';
+      adaptarFormularioNuevo('CADETE');
+    }
+
+    function cerrarModalNuevoIntegrante() {
+      document.getElementById('modalNuevoIntegrante').classList.add('hidden');
+      document.getElementById('formNuevoIntegrante').reset();
+    }
+
+    function adaptarFormularioNuevo(tipo) {
+      const selJer = document.getElementById('nuevoPerJerarquiaSelect');
+      const inpJer = document.getElementById('nuevoPerJerarquiaInput');
+      const inpArea = document.getElementById('nuevoPerArea');
+
+      if (tipo === 'CADETE') {
+        selJer.classList.remove('hidden');
+        inpJer.classList.add('hidden');
+        inpArea.value = 'Cuerpo de Cadetes';
+      } else if (tipo === 'VISITANTE') {
+        selJer.classList.add('hidden');
+        inpJer.classList.remove('hidden');
+        inpJer.value = 'VISITANTE / PROVEEDOR';
+        inpArea.value = 'Visita / Proveedor';
+      } else {
+        selJer.classList.add('hidden');
+        inpJer.classList.remove('hidden');
+        inpJer.value = '';
+        inpArea.value = 'Planta Permanente IESP';
+      }
+    }
+
+    async function guardarNuevoIntegrante(e) {
+      e.preventDefault();
+      const tipo = document.getElementById('nuevoPerTipo').value;
+      const jerarquia = (tipo === 'CADETE') 
+        ? document.getElementById('nuevoPerJerarquiaSelect').value 
+        : document.getElementById('nuevoPerJerarquiaInput').value.trim();
+
+      const payload = {
+        nombre_completo: document.getElementById('nuevoPerNombre').value.trim().toUpperCase(),
+        jerarquia_rol: jerarquia || 'Efectivo Policial',
+        cargo_chapa: document.getElementById('nuevoPerChapa').value.trim(),
+        dni: document.getElementById('nuevoPerDni').value.trim(),
+        area_division: document.getElementById('nuevoPerArea').value.trim(),
+        tipo_persona: tipo
+      };
+
+      const res = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        payload.id = data.id;
+
+        if (document.getElementById('nuevoPerVincularQR').value === 'true' && tokenDetectadoTemporal) {
+          const urlOficial = `https://credenciales.dpd1.ar/publicoQR/${tokenDetectadoTemporal}`;
+          const resVinculo = await fetch(`/api/personas/${data.id}/vincular-qr`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tokenDetectadoTemporal, url: urlOficial })
+          });
+          const dataVinculo = await resVinculo.json();
+          payload.credencial_token = tokenDetectadoTemporal;
+          payload.credencial_url = urlOficial;
+          payload.foto_url = dataVinculo.foto_url || null;
+          cerrarModalVincularCredencial();
+        }
+
+        cerrarModalNuevoIntegrante();
+        cargarPersonas();
+        cargarFuerzaPresente();
+        seleccionarPersonaEnCard(payload);
+      } else {
+        alert('Error al guardar integrante: ' + (data.error || ''));
+      }
+    }
+
+    // --- ESCÁNER Y ENTRADA MANUAL DE CREDENCIAL QR ---
+    function extraerTokenQR(textoQR) {
+      if (!textoQR) return '';
+      const texto = textoQR.trim();
+      if (texto.toLowerCase().includes('/publicoqr/')) {
+        const partes = texto.split(/\/publicoQR\//i);
+        if (partes[1]) {
+          return partes[1].split('?')[0].split('/')[0].trim();
+        }
+      }
+      return texto;
+    }
+
+    function abrirIngresoManualQR() {
+      const entrada = prompt("Pegue aquí el enlace completo de la credencial o el código que leyó la cámara:\n(Ej: https://credenciales.dpd1.ar/publicoQR/abc123xyz)");
+      if (!entrada || entrada.trim() === '') return;
+
+      const tokenLimpio = extraerTokenQR(entrada.trim());
+      if (!tokenLimpio) {
+        alert("No se detectó un identificador válido en el texto ingresado.");
+        return;
+      }
+
+      procesarCredencialQR(tokenLimpio);
+    }
+
+    function iniciarEscanerQR() {
+      escaneoEnProceso = false;
+      document.getElementById('modalEscanerQR').classList.remove('hidden');
+      document.getElementById('qrFeedback').innerText = 'Enfocando credencial policial...';
+
+      if (!html5QrScanner) {
+        html5QrScanner = new Html5Qrcode("readerQr");
+      }
+
+      html5QrScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          if (escaneoEnProceso) return;
+          escaneoEnProceso = true;
+
+          const token = extraerTokenQR(decodedText);
+          document.getElementById('qrFeedback').innerText = '✅ ¡Código detectado! Procesando...';
+
+          html5QrScanner.stop().then(() => {
+            document.getElementById('modalEscanerQR').classList.add('hidden');
+            procesarCredencialQR(token);
+          }).catch(() => {
+            document.getElementById('modalEscanerQR').classList.add('hidden');
+            procesarCredencialQR(token);
+          });
+        },
+        (errorMessage) => {}
+      ).catch(err => {
+        alert('No se pudo acceder a la cámara: ' + err);
+        document.getElementById('modalEscanerQR').classList.add('hidden');
+      });
+    }
+
+    function detenerEscanerQR() {
+      escaneoEnProceso = false;
+      if (html5QrScanner) {
+        html5QrScanner.stop().then(() => {
+          document.getElementById('modalEscanerQR').classList.add('hidden');
+        }).catch(() => {
+          document.getElementById('modalEscanerQR').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('modalEscanerQR').classList.add('hidden');
+      }
+    }
+
+    async function procesarCredencialQR(token) {
+      if (!token) {
+        alert('No se pudo leer el identificador del código QR.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/personas/por-token/${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error('Servidor no disponible. ¿Reinició node server.js?');
+
+        const persona = await res.json();
+        if (persona && persona.id) {
+          seleccionarPersonaEnCard(persona);
+        } else {
+          tokenDetectadoTemporal = token;
+          abrirModalVincularCredencial(token);
+        }
+      } catch (err) {
+        alert('Aviso del sistema: ' + err.message);
+        tokenDetectadoTemporal = token;
+        abrirModalVincularCredencial(token);
+      }
+    }
+
+    function abrirModalVincularCredencial(token) {
+      document.getElementById('modalVincularCredencial').classList.remove('hidden');
+      document.getElementById('tokenVisual').innerText = token.substring(0, 12) + '...';
+      document.getElementById('inputBuscarVinculo').value = '';
+      document.getElementById('resultadosVinculo').innerHTML = '<p class="p-3 text-xs text-slate-400 text-center">Escriba el apellido o DNI</p>';
+    }
+
+    function cerrarModalVincularCredencial() {
+      document.getElementById('modalVincularCredencial').classList.add('hidden');
+      tokenDetectadoTemporal = null;
+    }
+
+    async function buscarParaVincular(val) {
+      const cont = document.getElementById('resultadosVinculo');
+      const texto = val.trim();
+      if (texto.length < 2) {
+        cont.innerHTML = '<p class="p-3 text-xs text-slate-400 text-center">Escriba el apellido o DNI</p>';
+        return;
+      }
+      const res = await fetch(`/api/personas/buscar?q=${encodeURIComponent(texto)}`);
+      const lista = await res.json();
+      cont.innerHTML = '';
+
+      if (lista.length === 0) {
+        cont.innerHTML = `
+          <div class="p-3 text-xs text-center space-y-2">
+            <p class="text-slate-500">No se encontró en la fuerza efectiva.</p>
+            <button onclick="abrirModalNuevoIntegrante('${texto.toUpperCase()}', true)" class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg shadow text-xs">
+              ➕ Crear y vincular a este QR
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      lista.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'p-3 text-xs border-b active:bg-blue-50 cursor-pointer flex justify-between items-center';
+        div.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-900">${p.jerarquia_rol} ${p.nombre_completo}</p>
+            <p class="text-[11px] text-slate-500">${p.area_division || p.tipo_persona} ${p.dni ? '| DNI: ' + p.dni : ''}</p>
+          </div>
+          <button class="bg-blue-600 text-white font-bold px-2.5 py-1 rounded text-xs">Vincular</button>
+        `;
+        div.onclick = async () => {
+          const urlOficial = `https://credenciales.dpd1.ar/publicoQR/${tokenDetectadoTemporal}`;
+          const resV = await fetch(`/api/personas/${p.id}/vincular-qr`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tokenDetectadoTemporal, url: urlOficial })
+          });
+          const dataV = await resV.json();
+          p.credencial_token = tokenDetectadoTemporal;
+          p.credencial_url = urlOficial;
+          p.foto_url = dataV.foto_url || null;
+          cerrarModalVincularCredencial();
+          seleccionarPersonaEnCard(p);
+        };
+        cont.appendChild(div);
+      });
+    }
+
+    async function seleccionarPersonaEnCard(p) {
+      personaSeleccionada = p;
+      document.getElementById('selectedPersonaId').value = p.id;
+      document.getElementById('cardNombre').innerText = `${p.jerarquia_rol} ${p.nombre_completo}`;
+      document.getElementById('cardJerarquia').innerText = `Cargo/Rol: ${p.cargo_chapa || 'S/D'} | Área: ${p.area_division || p.tipo_persona}`;
+      document.getElementById('cardDniRef').innerText = p.dni ? `DNI: ${p.dni}` : '';
+      
+      // Mostrar Foto Oficial si existe
+      const imgFoto = document.getElementById('cardFotoPerfil');
+      const iconoSinFoto = document.getElementById('cardIconoSinFoto');
+
+      if (p.foto_url) {
+        imgFoto.src = p.foto_url;
+        imgFoto.classList.remove('hidden');
+        iconoSinFoto.classList.add('hidden');
+      } else {
+        imgFoto.src = '';
+        imgFoto.classList.add('hidden');
+        iconoSinFoto.classList.remove('hidden');
+      }
+
+      const resEstado = await fetch(`/api/personas/${p.id}/estado-actual`);
+      const estadoData = await resEstado.json();
+      personaSeleccionada.ultimo_movimiento = estadoData.tipo_movimiento;
+
+      const badge = document.getElementById('badgeEstadoUbicacion');
+      const texto = document.getElementById('textoEstadoUbicacion');
+      const hora = document.getElementById('horaEstadoUbicacion');
+
+      if (estadoData.tipo_movimiento === 'INGRESO') {
+        badge.className = 'py-1 px-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-amber-100 text-amber-900 border border-amber-300';
+        texto.innerHTML = '📍 EN EL INSTITUTO (ADENTRO)';
+        hora.innerText = `Ingresó: ${estadoData.hora || '--:--'} hs`;
+      } else {
+        badge.className = 'py-1 px-2.5 rounded-lg text-xs font-bold flex items-center justify-between bg-slate-100 text-slate-700 border border-slate-300';
+        texto.innerHTML = '🚪 FUERA DEL INSTITUTO';
+        hora.innerText = estadoData.hora ? `Egreso: ${estadoData.hora} hs` : '';
+      }
+
+      const fichaQR = document.getElementById('fichaCredencialQR');
+      if (p.credencial_token) {
+        const urlQR = p.credencial_url || `https://credenciales.dpd1.ar/publicoQR/${p.credencial_token}`;
+        document.getElementById('qrTokenBadge').innerText = p.credencial_token.substring(0, 10) + '...';
+        document.getElementById('qrUrlEnlace').innerText = urlQR;
+        document.getElementById('qrUrlEnlace').href = urlQR;
+        document.getElementById('btnVerCredencialOficial').href = urlQR;
+        fichaQR.classList.remove('hidden');
+      } else {
+        fichaQR.classList.add('hidden');
+      }
+
+      const bCon = document.getElementById('bloqueConVehiculo');
+      const bSin = document.getElementById('bloqueSinVehiculo');
+
+      if (p.veh_dominio) {
+        document.getElementById('cardEfectivoDominio').innerText = p.veh_dominio;
+        document.getElementById('cardEfectivoModelo').innerText = p.veh_modelo || 'Vehículo Registrado';
+        bCon.classList.remove('hidden');
+        bSin.classList.add('hidden');
+      } else {
+        bCon.classList.add('hidden');
+        bSin.classList.remove('hidden');
+      }
+
+      document.getElementById('personaSeleccionada').classList.remove('hidden');
+      document.getElementById('busquedaInput').value = '';
+      document.getElementById('resultadosBusqueda').classList.add('hidden');
+    }
+
+    function deseleccionarPersona() {
+      personaSeleccionada = null;
+      document.getElementById('personaSeleccionada').classList.add('hidden');
+    }
+
+    // --- ACCESO COMBINADO CON ANTI-PASSBACK Y AVISO DE RETARDO ---
+    async function marcarAccesoCombinado(tipoMovimiento, conVehiculo, forzar = false) {
+      if (!personaSeleccionada) return;
+
+      if (!forzar && personaSeleccionada.ultimo_movimiento === tipoMovimiento) {
+        const accionContraria = tipoMovimiento === 'INGRESO' ? 'EGRESO' : 'INGRESO';
+        const confirmar = confirm(`⚠️ ATENCIÓN:\n${personaSeleccionada.nombre_completo} ya registra un ${tipoMovimiento}.\n\n¿Desea asentar ${accionContraria} en su lugar?\n(Presione CANCELAR si desea forzar el ${tipoMovimiento} de todos modos)`);
+        
+        if (confirmar) {
+          return marcarAccesoCombinado(accionContraria, conVehiculo, false);
+        } else {
+          forzar = true;
+        }
+      }
+
+      const payload = {
+        persona_id: personaSeleccionada.id,
+        tipo_movimiento: tipoMovimiento,
+        puesto: document.getElementById('puestoSelect').value,
+        con_vehiculo: conVehiculo,
+        dominio: personaSeleccionada.veh_dominio || null,
+        modelo: personaSeleccionada.veh_modelo || null,
+        titular: personaSeleccionada.nombre_completo,
+        jerarquia: personaSeleccionada.jerarquia_rol,
+        forzar: forzar
+      };
+
+      const res = await fetch('/api/accesos/combinado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok && data.conflicto) {
+        alert(data.mensaje);
+        return;
+      }
+
+      if (data.conRetardo) {
+        alert(`⏰ ATENCIÓN DE GUARDIA:\nEl cadete ${personaSeleccionada.nombre_completo} ingresó con RETARDO respecto al horario fijado de regreso de franco.`);
+      }
+
+      deseleccionarPersona();
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+    }
+
+    // --- BÚSQUEDA DE INTEGRANTES ---
+    async function buscarPersona(val) {
+      const container = document.getElementById('resultadosBusqueda');
+      const texto = val.trim();
+      if (texto.length < 2) {
+        container.classList.add('hidden');
+        return;
+      }
+      const res = await fetch(`/api/personas/buscar?q=${encodeURIComponent(texto)}`);
+      const personas = await res.json();
+      container.innerHTML = '';
+
+      if (personas.length === 0) {
+        container.innerHTML = `
+          <div class="p-3 text-xs text-center space-y-2">
+            <p class="text-slate-500">No se encontró a "<strong>${texto}</strong>" en la fuerza efectiva.</p>
+            <button onclick="abrirModalNuevoIntegrante('${texto.toUpperCase()}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg shadow inline-flex items-center space-x-1">
+              <span>➕</span>
+              <span>Dar de alta como nuevo integrante</span>
+            </button>
+          </div>
+        `;
+      } else {
+        personas.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'p-3 text-xs active:bg-indigo-50 cursor-pointer flex justify-between items-center';
+          const tagVeh = p.veh_dominio ? `<span class="bg-emerald-100 text-emerald-800 font-mono px-1.5 py-0.5 rounded font-bold ml-1">${p.veh_dominio}</span>` : '';
+          const tagDni = p.dni ? `<span class="text-slate-500 font-mono ml-1">(DNI: ${p.dni})</span>` : '';
+          item.innerHTML = `<span><strong>${p.jerarquia_rol}</strong> ${p.nombre_completo} ${tagDni} ${tagVeh}</span><span class="text-slate-400 font-mono">C/${p.cargo_chapa || '-'}</span>`;
+          
+          item.onclick = () => {
+            seleccionarPersonaEnCard(p);
+          };
+          container.appendChild(item);
+        });
+
+        const footerAlta = document.createElement('div');
+        footerAlta.className = 'p-2 bg-slate-50 text-center border-t';
+        footerAlta.innerHTML = `
+          <button onclick="abrirModalNuevoIntegrante('${texto.toUpperCase()}')" class="text-indigo-600 hover:underline font-bold text-[11px]">
+            ➕ ¿No figura en la lista? Dar de alta aquí
+          </button>
+        `;
+        container.appendChild(footerAlta);
+      }
+      container.classList.remove('hidden');
+    }
+
+    // --- MODIFICACIÓN DE DATOS DE INTEGRANTES ---
+    function abrirModalEditarPersonaDesdeCard() {
+      if (!personaSeleccionada) return;
+      abrirModalEditarPersona(personaSeleccionada);
+    }
+
+    function abrirModalEditarPersona(p) {
+      document.getElementById('editPerId').value = p.id;
+      document.getElementById('editPerJerarquia').value = p.jerarquia_rol || '';
+      document.getElementById('editPerNombre').value = p.nombre_completo || '';
+      document.getElementById('editPerChapa').value = p.cargo_chapa || '';
+      document.getElementById('editPerDni').value = p.dni || '';
+      document.getElementById('editPerArea').value = p.area_division || '';
+      document.getElementById('editPerTipo').value = p.tipo_persona || 'PERSONAL';
+      document.getElementById('modalEditarPersona').classList.remove('hidden');
+    }
+
+    function cerrarModalEditarPersona() {
+      document.getElementById('modalEditarPersona').classList.add('hidden');
+    }
+
+    async function guardarEdicionPersona(e) {
+      e.preventDefault();
+      const id = document.getElementById('editPerId').value;
+      const payload = {
+        jerarquia_rol: document.getElementById('editPerJerarquia').value.trim(),
+        nombre_completo: document.getElementById('editPerNombre').value.trim().toUpperCase(),
+        cargo_chapa: document.getElementById('editPerChapa').value.trim(),
+        dni: document.getElementById('editPerDni').value.trim(),
+        area_division: document.getElementById('editPerArea').value.trim(),
+        tipo_persona: document.getElementById('editPerTipo').value
+      };
+
+      const res = await fetch(`/api/personas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        cerrarModalEditarPersona();
+        if (personaSeleccionada && personaSeleccionada.id == id) {
+          Object.assign(personaSeleccionada, payload);
+          seleccionarPersonaEnCard(personaSeleccionada);
+        }
+        cargarPersonas();
+        cargarLibroGuardia();
+        cargarFuerzaPresente();
+      } else {
+        alert('Error al actualizar: ' + (data.error || ''));
+      }
+    }
+
+    // --- MODIFICACIÓN DE DATOS DE VEHÍCULOS ---
+    function abrirModalEditarVehiculo(v) {
+      document.getElementById('editVehId').value = v.id;
+      document.getElementById('editVehDominio').value = v.dominio || '';
+      document.getElementById('editVehTitular').value = v.titular || '';
+      document.getElementById('editVehJerarquia').value = v.jerarquia || '';
+      document.getElementById('editVehModelo').value = v.modelo || '';
+      document.getElementById('modalEditarVehiculo').classList.remove('hidden');
+    }
+
+    function cerrarModalEditarVehiculo() {
+      document.getElementById('modalEditarVehiculo').classList.add('hidden');
+    }
+
+    async function guardarEdicionVehiculo(e) {
+      e.preventDefault();
+      const id = document.getElementById('editVehId').value;
+      const payload = {
+        dominio: document.getElementById('editVehDominio').value.trim().toUpperCase(),
+        titular: document.getElementById('editVehTitular').value.trim().toUpperCase(),
+        jerarquia: document.getElementById('editVehJerarquia').value.trim(),
+        modelo: document.getElementById('editVehModelo').value.trim()
+      };
+
+      const res = await fetch(`/api/vehiculos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        cerrarModalEditarVehiculo();
+        cargarVehiculos();
+        cargarLibroGuardia();
+      } else {
+        alert('Error al actualizar vehículo: ' + (data.error || ''));
+      }
+    }
+
+    // --- CARGAR LIBRO DE GUARDIA CON CONTROL DE RETARDO Y ALERTAS ---
+    function alternarSeleccionFila(id, checked) {
+      if (checked) {
+        asientosSeleccionados.add(id);
+      } else {
+        asientosSeleccionados.delete(id);
+      }
+    }
+
+    function alternarSeleccionTodos(checked) {
+      const checks = document.querySelectorAll('.check-fila-libro');
+      checks.forEach(c => {
+        c.checked = checked;
+        const id = parseInt(c.dataset.id);
+        if (checked) asientosSeleccionados.add(id);
+        else asientosSeleccionados.delete(id);
+      });
+    }
+
+    async function cargarLibroGuardia() {
+      const fecha = document.getElementById('filtroFecha').value;
+      const res = await fetch(`/api/libro-guardia?fecha=${fecha}`);
+      const data = await res.json();
+      cacheLibroGuardia = data;
+      
+      const tbody = document.getElementById('tablaLibroGuardia');
+      tbody.innerHTML = '';
+      
+      const validos = data.filter(r => r.estado !== 'ANULADO');
+      document.getElementById('totalRegistrosDia').innerText = validos.length;
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Sin movimientos registrados para esta fecha.</td></tr>`;
+        return;
+      }
+
+      data.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        const esAnulado = r.estado === 'ANULADO';
+        const yaEnviadoWA = r.notificado_wa === 1;
+
+        tr.className = esAnulado ? 'bg-red-50/70 text-slate-400' : (idx % 2 === 0 ? 'bg-white' : 'bg-slate-50');
+
+        let badge = 'bg-slate-100 text-slate-800 border-slate-300';
+        if (esAnulado) {
+          badge = 'bg-rose-200 text-rose-800 border-rose-400 line-through';
+        } else if (r.con_retardo === 1) {
+          badge = 'bg-amber-200 text-amber-900 border-amber-400 font-black';
+        } else if (r.accion.includes('DISPOSICIÓN')) {
+          badge = 'bg-amber-100 text-amber-900 border-amber-300 font-black';
+        } else if (r.accion.includes('INGRESO') || r.accion.includes('REGRESO')) {
+          badge = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        } else if (r.accion.includes('EGRESO') || r.accion.includes('SALIDA')) {
+          badge = 'bg-rose-100 text-rose-800 border-rose-300';
+        } else if (r.rubro === 'LOGISTICA') {
+          badge = 'bg-blue-100 text-blue-800 border-blue-300';
+        }
+
+        const retardoHtml = (r.con_retardo === 1 && !esAnulado) ? `<span class="inline-block bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1 rounded font-bold ml-1">⏰ RETARDO</span>` : '';
+        const motivoHtml = esAnulado ? `<span class="block text-[10px] text-rose-700 font-bold uppercase mt-0.5">❌ ANULADO POR: ${r.motivo_anulacion || 'ERROR DE CARGA'}</span>` : '';
+        const estaChequeado = asientosSeleccionados.has(r.id) ? 'checked' : '';
+
+        let btnWaHtml = '';
+        if (yaEnviadoWA) {
+          btnWaHtml = `
+            <button onclick='enviarNovedadIndividualWhatsApp(${JSON.stringify(r)})' title="Ya enviado a Jefatura. Clic para reenviar" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-400 text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center space-x-1">
+              <span>✅</span>
+              <span>Enviado</span>
+            </button>
+          `;
+        } else {
+          btnWaHtml = `
+            <button onclick='enviarNovedadIndividualWhatsApp(${JSON.stringify(r)})' title="Enviar por WhatsApp" class="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[11px] px-2 py-1 rounded font-bold shadow flex items-center space-x-0.5">
+              <span>📲</span>
+            </button>
+          `;
+        }
+
+        tr.innerHTML = `
+          <td class="p-2 sm:p-2.5 border text-center no-print">
+            <input type="checkbox" data-id="${r.id}" ${estaChequeado} onchange="alternarSeleccionFila(${r.id}, this.checked)" class="check-fila-libro cursor-pointer">
+          </td>
+          <td class="p-2 sm:p-2.5 border font-mono font-bold text-center ${esAnulado ? 'line-through text-slate-400' : 'text-slate-700'}">${r.hora}</td>
+          <td class="p-2 sm:p-2.5 border font-semibold text-indigo-900">${r.puesto}</td>
+          <td class="p-2 sm:p-2.5 border">
+            <span class="inline-block px-1.5 py-0.5 text-[10px] font-bold rounded border ${badge}">
+              ${r.accion}
+            </span>
+            ${retardoHtml}
+          </td>
+          <td class="p-2 sm:p-2.5 border font-semibold ${esAnulado ? 'line-through text-slate-400' : 'text-slate-900'}">${r.protagonista}</td>
+          <td class="p-2 sm:p-2.5 border ${esAnulado ? 'line-through' : 'text-slate-600'}">
+            ${r.detalle}
+            ${motivoHtml}
+          </td>
+          <td class="p-2 sm:p-2.5 border text-center no-print">
+            <div class="flex items-center justify-center space-x-1">
+              ${!esAnulado ? `
+                ${btnWaHtml}
+                <button onclick="anularAsientoPorError(${r.id}, '${r.rubro}')" title="Anular por error" class="bg-slate-100 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-slate-300 hover:border-rose-300 text-[11px] px-1.5 py-1 rounded font-bold">
+                  ✕
+                </button>
+              ` : '<span class="text-[10px] font-bold text-rose-500">ANULADO</span>'}
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      cargarComisionesActivas();
+    }
+
+    // --- CARGAR COMISIONES Y DETECTAR DEMORAS (+2 HORAS) ---
+    async function cargarComisionesActivas() {
+      const res = await fetch('/api/comisiones/activas');
+      const data = await res.json();
+      const cont = document.getElementById('contenedorComisionesActivas');
+      const lista = document.getElementById('listaComisionesActivas');
+      lista.innerHTML = '';
+
+      if (data.length > 0) {
+        cont.classList.remove('hidden');
+        const ahora = new Date();
+
+        data.forEach(c => {
+          const salida = new Date(c.hora_salida);
+          const diferenciaMinutos = (ahora - salida) / (1000 * 60);
+          const esDemorada = diferenciaMinutos >= 120;
+
+          const div = document.createElement('div');
+          div.className = `flex justify-between items-center p-2 rounded border text-xs shadow-sm ${esDemorada ? 'comision-demorada text-red-950 font-bold' : 'bg-white border-amber-300 text-slate-800'}`;
+          
+          const badgeDemora = esDemorada ? `<span class="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black ml-1 animate-pulse">⚠️ DEMORADA (+2 hs)</span>` : '';
+
+          div.innerHTML = `
+            <span><strong>${c.hora_salida.substring(11, 16)} hs</strong>: ${c.cadetes_efectivos} con destino a <strong>${c.destino}</strong> ${badgeDemora}</span>
+            <button onclick="marcarRegresoComision(${c.id})" class="bg-amber-600 active:bg-amber-700 text-white px-2.5 py-1 rounded font-bold text-[11px] shadow">Regreso</button>
+          `;
+          lista.appendChild(div);
+        });
+      } else {
+        cont.classList.add('hidden');
+      }
+    }
+
+    async function marcarRegresoComision(id) {
+      await fetch(`/api/comisiones/${id}/regreso`, { method: 'POST' });
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+    }
+
+    async function registrarEnvioWhatsAppEnServidor(listaItems) {
+      try {
+        await fetch('/api/libro-guardia/marcar-wa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: listaItems })
+        });
+        cargarLibroGuardia();
+      } catch (e) {
+        console.error("Error al marcar WhatsApp:", e);
+      }
+    }
+
+    // --- ENVIAR UNA SOLA NOVEDAD PUNTUAL POR WHATSAPP ---
+    function enviarNovedadIndividualWhatsApp(r) {
+      const fecha = document.getElementById('filtroFecha').value;
+      const partesFecha = fecha.split('-');
+      const fechaFormateada = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
+
+      let icono = '🔹';
+      if (r.con_retardo === 1) icono = '⏰';
+      else if (r.accion.includes('INGRESO') || r.accion.includes('REGRESO')) icono = '🟢';
+      else if (r.accion.includes('EGRESO') || r.accion.includes('SALIDA')) icono = '🔴';
+      else if (r.rubro === 'LOGISTICA') icono = '🚚';
+
+      let mensaje = `🚨 *NOVEDAD DE GUARDIA - IESP*\n`;
+      mensaje += `📅 *Fecha:* ${fechaFormateada}\n`;
+      mensaje += `──────────────────────\n`;
+      mensaje += `${icono} *${r.hora} hs* | *${r.accion}* (📍 *${r.puesto}*)\n`;
+      mensaje += `👤 *Protagonista:* ${r.protagonista}\n`;
+      mensaje += `📝 *Detalle:* ${r.detalle}\n`;
+      if (r.con_retardo === 1) mensaje += `⚠️ *OBSERVACIÓN:* INGRESO CON RETARDO (Franco Vencido)\n`;
+      mensaje += `──────────────────────\n`;
+      mensaje += `_Sistema Digital de Guardia - IESP "Gral. José F. de San Martín"_`;
+
+      registrarEnvioWhatsAppEnServidor([{ id: r.id, rubro: r.rubro }]);
+
+      const urlWhatsApp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+      window.open(urlWhatsApp, '_blank');
+    }
+
+    // --- ENVIAR SÓLO LAS NOVEDADES MARCADAS CON CASILLA ---
+    function enviarNovedadesSeleccionadasWhatsApp() {
+      if (asientosSeleccionados.size === 0) {
+        alert('Seleccione al menos una casilla (tilde) del movimiento que desea enviar, o toque el botón "📲" en la fila correspondiente.');
+        return;
+      }
+
+      const fecha = document.getElementById('filtroFecha').value;
+      const partesFecha = fecha.split('-');
+      const fechaFormateada = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
+
+      const seleccionados = cacheLibroGuardia.filter(r => asientosSeleccionados.has(r.id));
+      const itemsParaMarcar = [];
+
+      let mensaje = `👮‍♂️ *PARTE DE MOVIMIENTOS - IESP*\n`;
+      mensaje += `📅 *Fecha:* ${fechaFormateada} | *Movimientos informados:* ${seleccionados.length}\n`;
+      mensaje += `──────────────────────\n\n`;
+
+      seleccionados.forEach(r => {
+        itemsParaMarcar.push({ id: r.id, rubro: r.rubro });
+        if (r.estado === 'ANULADO') {
+          mensaje += `❌ ~*${r.hora} hs* | *${r.accion}* (📍 ${r.puesto})~\n`;
+          mensaje += `~👤 *Protagonista:* ${r.protagonista}~\n`;
+          mensaje += `🚫 *[ASIENTO ANULADO: ${r.motivo_anulacion || 'ERROR DE CARGA'}]*\n\n`;
+        } else {
+          let icono = '🔹';
+          if (r.con_retardo === 1) icono = '⏰';
+          else if (r.accion.includes('INGRESO') || r.accion.includes('REGRESO')) icono = '🟢';
+          else if (r.accion.includes('EGRESO') || r.accion.includes('SALIDA')) icono = '🔴';
+          else if (r.rubro === 'LOGISTICA') icono = '🚚';
+
+          mensaje += `${icono} *${r.hora} hs* | *${r.accion}* (📍 *${r.puesto}*)\n`;
+          mensaje += `👤 *Protagonista:* ${r.protagonista}\n`;
+          mensaje += `📝 *Detalle:* ${r.detalle}\n`;
+          if (r.con_retardo === 1) mensaje += `⚠️ *[INGRESO CON RETARDO]*\n`;
+          mensaje += `\n`;
+        }
+      });
+
+      mensaje += `──────────────────────\n`;
+      mensaje += `_Sistema Digital de Guardia - IESP "Gral. José F. de San Martín"_`;
+
+      registrarEnvioWhatsAppEnServidor(itemsParaMarcar);
+
+      const urlWhatsApp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+      window.open(urlWhatsApp, '_blank');
+    }
+
+    // --- ENVIAR TODO EL LIBRO DEL DÍA COMPLETO ---
+    function enviarInformeCompletoWhatsApp() {
+      if (!cacheLibroGuardia || cacheLibroGuardia.length === 0) {
+        alert('No hay registros en esta fecha.');
+        return;
+      }
+
+      const fecha = document.getElementById('filtroFecha').value;
+      const partesFecha = fecha.split('-');
+      const fechaFormateada = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
+      const validos = cacheLibroGuardia.filter(r => r.estado !== 'ANULADO');
+      const itemsParaMarcar = [];
+
+      let mensaje = `👮‍♂️ *PARTE DIARIO COMPLETO DE GUARDIA - IESP*\n`;
+      mensaje += `📅 *Fecha:* ${fechaFormateada} | *Total Asientos:* ${validos.length}\n`;
+      mensaje += `──────────────────────\n\n`;
+
+      cacheLibroGuardia.forEach(r => {
+        itemsParaMarcar.push({ id: r.id, rubro: r.rubro });
+        if (r.estado === 'ANULADO') {
+          mensaje += `❌ ~*${r.hora} hs* | *${r.accion}* (📍 ${r.puesto})~\n`;
+          mensaje += `~👤 *Protagonista:* ${r.protagonista}~\n`;
+          mensaje += `🚫 *[ASIENTO ANULADO: ${r.motivo_anulacion || 'ERROR DE CARGA'}]*\n\n`;
+        } else {
+          let icono = '🔹';
+          if (r.con_retardo === 1) icono = '⏰';
+          else if (r.accion.includes('INGRESO') || r.accion.includes('REGRESO')) icono = '🟢';
+          else if (r.accion.includes('EGRESO') || r.accion.includes('SALIDA')) icono = '🔴';
+          else if (r.rubro === 'LOGISTICA') icono = '🚚';
+
+          mensaje += `${icono} *${r.hora} hs* | *${r.accion}* (📍 *${r.puesto}*)\n`;
+          mensaje += `👤 *Protagonista:* ${r.protagonista}\n`;
+          mensaje += `📝 *Detalle:* ${r.detalle}\n`;
+          if (r.con_retardo === 1) mensaje += `⚠️ *[INGRESO CON RETARDO]*\n`;
+          mensaje += `\n`;
+        }
+      });
+
+      mensaje += `──────────────────────\n`;
+      mensaje += `_Sistema Digital de Guardia - IESP "Gral. José F. de San Martín"_`;
+
+      registrarEnvioWhatsAppEnServidor(itemsParaMarcar);
+
+      const urlWhatsApp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+      window.open(urlWhatsApp, '_blank');
+    }
+
+    // --- ANULAR ASIENTO CON AUDITORÍA ---
+    async function anularAsientoPorError(id, rubro) {
+      const motivo = prompt('Motivo de anulación (ej: Carga errónea / Duplicado / Equivocación de puesto):', 'Carga por error');
+      if (!motivo || motivo.trim() === '') return;
+
+      const res = await fetch('/api/libro-guardia/anular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, rubro, motivo: motivo.trim() })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        cargarLibroGuardia();
+        cargarFuerzaPresente();
+      } else {
+        alert('No se pudo anular el asiento: ' + (data.error || 'Error desconocido'));
+      }
+    }
+
+    function abrirModalNuevaComision() {
+      document.getElementById('modalNuevaComision').classList.remove('hidden');
+    }
+
+    function cerrarModalNuevaComision() {
+      document.getElementById('modalNuevaComision').classList.add('hidden');
+      document.getElementById('formComisionModal').reset();
+    }
+
+    async function enviarNuevaComision(e) {
+      e.preventDefault();
+      const payload = {
+        tipo: document.getElementById('modalComTipo').value,
+        destino: document.getElementById('modalComDestino').value.trim(),
+        vehiculo: document.getElementById('modalComVehiculo').value.trim(),
+        responsable: document.getElementById('badgeNombreOficial').innerText || 'Oficial de Guardia',
+        cadetes_efectivos: document.getElementById('modalComEfectivos').value.trim()
+      };
+
+      await fetch('/api/comisiones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      cerrarModalNuevaComision();
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+    }
+
+    function abrirModalRegistrarVehiculoRapido() {
+      if (!personaSeleccionada) return;
+      document.getElementById('vehRapidoTitular').value = personaSeleccionada.nombre_completo;
+      document.getElementById('vehRapidoJerarquia').value = personaSeleccionada.jerarquia_rol;
+      document.getElementById('vehRapidoDominio').value = '';
+      document.getElementById('vehRapidoModelo').value = '';
+      document.getElementById('modalRegistrarVehiculoRapido').classList.remove('hidden');
+    }
+
+    function cerrarModalRegistrarVehiculoRapido() {
+      document.getElementById('modalRegistrarVehiculoRapido').classList.add('hidden');
+    }
+
+    async function guardarVehiculoRapido(e) {
+      e.preventDefault();
+      const dominio = document.getElementById('vehRapidoDominio').value.trim().toUpperCase();
+      const modelo = document.getElementById('vehRapidoModelo').value.trim();
+
+      const res = await fetch('/api/vehiculos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titular: personaSeleccionada.nombre_completo,
+          jerarquia: personaSeleccionada.jerarquia_rol,
+          modelo: modelo,
+          dominio: dominio,
+          persona_id: personaSeleccionada.id
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        personaSeleccionada.veh_dominio = dominio;
+        personaSeleccionada.veh_modelo = modelo;
+
+        document.getElementById('cardEfectivoDominio').innerText = dominio;
+        document.getElementById('cardEfectivoModelo').innerText = modelo || 'Vehículo Registrado';
+        document.getElementById('bloqueConVehiculo').classList.remove('hidden');
+        document.getElementById('bloqueSinVehiculo').classList.add('hidden');
+        cerrarModalRegistrarVehiculoRapido();
+        cargarVehiculos();
+      }
+    }
+
+    async function buscarVehiculoEnGuardia(val) {
+      const container = document.getElementById('resultadosBusquedaVehiculo');
+      if (val.trim().length < 2) {
+        container.classList.add('hidden');
+        return;
+      }
+      const res = await fetch(`/api/vehiculos/buscar?q=${encodeURIComponent(val)}`);
+      const vehiculos = await res.json();
+      container.innerHTML = '';
+
+      if (vehiculos.length === 0) {
+        container.innerHTML = '<div class="p-3 text-xs text-slate-400">No registrado</div>';
+      } else {
+        vehiculos.forEach(v => {
+          const item = document.createElement('div');
+          item.className = 'p-3 text-xs active:bg-emerald-50 cursor-pointer flex justify-between items-center';
+          item.innerHTML = `<span><strong class="font-mono text-emerald-700">${v.dominio}</strong> - ${v.modelo || 'Móvil'}</span><span class="text-slate-500">${v.titular}</span>`;
+          item.onclick = () => {
+            vehiculoSeleccionado = v;
+            document.getElementById('cardVehDominio').innerText = v.dominio;
+            document.getElementById('cardVehModelo').innerText = v.modelo || 'Vehículo';
+            document.getElementById('cardVehTitular').innerText = v.titular;
+            document.getElementById('cardVehJerarquia').innerText = v.jerarquia || 'Efectivo';
+            document.getElementById('vehiculoSeleccionado').classList.remove('hidden');
+            container.classList.add('hidden');
+            document.getElementById('busquedaVehiculoInput').value = '';
+          };
+          container.appendChild(item);
+        });
+      }
+      container.classList.remove('hidden');
+    }
+
+    async function registrarAccesoVehiculo(tipo) {
+      if (!vehiculoSeleccionado) return;
+      await fetch('/api/logistica', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          puesto: document.getElementById('puestoSelect').value,
+          tipo_evento: `VEHÍCULO (${tipo})`,
+          nombre_completo: vehiculoSeleccionado.titular,
+          dni: vehiculoSeleccionado.jerarquia || '-',
+          vehiculo_dominio: vehiculoSeleccionado.dominio,
+          detalle_motivo: `${tipo} en ${vehiculoSeleccionado.modelo || 'Vehículo'}`
+        })
+      });
+      document.getElementById('vehiculoSeleccionado').classList.add('hidden');
+      vehiculoSeleccionado = null;
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+    }
+
+    async function guardarLogistica(e) {
+      e.preventDefault();
+      await fetch('/api/logistica', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          puesto: document.getElementById('puestoSelect').value,
+          tipo_evento: document.getElementById('logTipo').value,
+          nombre_completo: document.getElementById('logNombre').value,
+          dni: document.getElementById('logDni').value,
+          vehiculo_dominio: document.getElementById('logDominio').value,
+          detalle_motivo: document.getElementById('logDetalle').value
+        })
+      });
+      document.getElementById('formLogistica').reset();
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+      cargarPersonas();
+    }
+
+    // --- FUERZA EFECTIVA Y EDICIÓN GENERAL ---
+    function abrirModalRegistros(tab) {
+      document.getElementById('modalRegistros').classList.remove('hidden');
+      cambiarPestana(tab);
+    }
+    function cerrarModalRegistros() {
+      document.getElementById('modalRegistros').classList.add('hidden');
+    }
+    function cambiarPestana(tab) {
+      const vPer = document.getElementById('vistaPersonas');
+      const vVeh = document.getElementById('vistaVehiculos');
+      const bPer = document.getElementById('tabBtnPersonas');
+      const bVeh = document.getElementById('tabBtnVehiculos');
+      if (tab === 'personas') {
+        vPer.classList.remove('hidden');
+        vVeh.classList.add('hidden');
+        bPer.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow';
+        bVeh.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300';
+        cargarPersonas();
+      } else {
+        vPer.classList.add('hidden');
+        vVeh.classList.remove('hidden');
+        bVeh.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow';
+        bPer.className = 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300';
+        cargarVehiculos();
+      }
+    }
+
+    async function cargarPersonas() {
+      const res = await fetch('/api/personas');
+      cachePersonas = await res.json();
+      document.getElementById('totalPersonasCount').innerText = cachePersonas.length;
+      document.getElementById('btnHeaderTotalPersonas').innerText = cachePersonas.length;
+      aplicarFiltrosPersonas();
+    }
+
+    function filtrarPorCategoria(cat) {
+      categoriaActiva = cat;
+      const botones = {
+        'TODOS': 'filtroCatTodos',
+        'PERSONAL': 'filtroCatPersonal',
+        'Cadete 1° Año': 'filtroCatCad1',
+        'Cadete 2° Año': 'filtroCatCad2',
+        'Cadete 3° Año': 'filtroCatCad3'
+      };
+      Object.keys(botones).forEach(k => {
+        const el = document.getElementById(botones[k]);
+        if (el) {
+          el.className = (k === cat) 
+            ? 'px-2 py-1 rounded font-bold bg-indigo-600 text-white shadow'
+            : 'px-2 py-1 rounded font-semibold bg-white border text-slate-700';
+        }
+      });
+      aplicarFiltrosPersonas();
+    }
+
+    function aplicarFiltrosPersonas() {
+      const texto = document.getElementById('filtroTextoPersonas').value.toLowerCase().trim();
+      const resultado = cachePersonas.filter(p => {
+        let pasaCat = true;
+        if (categoriaActiva === 'PERSONAL') pasaCat = p.tipo_persona === 'PERSONAL';
+        else if (categoriaActiva === 'Cadete 1° Año') pasaCat = (p.jerarquia_rol && p.jerarquia_rol.includes('1°'));
+        else if (categoriaActiva === 'Cadete 2° Año') pasaCat = (p.jerarquia_rol && p.jerarquia_rol.includes('2°'));
+        else if (categoriaActiva === 'Cadete 3° Año') pasaCat = (p.jerarquia_rol && p.jerarquia_rol.includes('3°'));
+
+        let pasaTexto = true;
+        if (texto.length > 0) {
+          pasaTexto = p.nombre_completo.toLowerCase().includes(texto) ||
+                      p.jerarquia_rol.toLowerCase().includes(texto) ||
+                      (p.cargo_chapa && p.cargo_chapa.includes(texto)) ||
+                      (p.dni && p.dni.includes(texto));
+        }
+        return pasaCat && pasaTexto;
+      });
+      renderTablaPersonas(resultado);
+    }
+
+    function renderTablaPersonas(items) {
+      const tbody = document.getElementById('tablaGestionPersonal');
+      tbody.innerHTML = '';
+      document.getElementById('cantFiltradosPersonas').innerText = items.length;
+      items.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        const refDniChapa = p.cargo_chapa ? `C/${p.cargo_chapa}` : (p.dni ? `DNI ${p.dni}` : '-');
+        tr.innerHTML = `
+          <td class="p-2 text-center text-slate-400 font-mono">${idx + 1}</td>
+          <td class="p-2 font-bold text-slate-700">${p.jerarquia_rol}</td>
+          <td class="p-2 font-semibold text-slate-900">${p.nombre_completo}</td>
+          <td class="p-2 font-mono font-bold text-center text-indigo-700">${refDniChapa}</td>
+          <td class="p-2 text-center">
+            <button onclick='abrirModalEditarPersona(${JSON.stringify(p)})' class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 font-bold px-2 py-1 rounded text-xs">
+              ✏️ Editar
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function cargarVehiculos() {
+      const res = await fetch('/api/vehiculos');
+      cacheVehiculos = await res.json();
+      document.getElementById('totalVehiculosCount').innerText = cacheVehiculos.length;
+      renderTablaVehiculos(cacheVehiculos);
+    }
+
+    function renderTablaVehiculos(items) {
+      const tbody = document.getElementById('tablaGestionVehiculos');
+      tbody.innerHTML = '';
+      items.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2 font-mono font-bold text-emerald-700">${v.dominio}</td>
+          <td class="p-2 font-semibold">${v.titular}</td>
+          <td class="p-2 text-slate-500">${v.modelo || '-'}</td>
+          <td class="p-2 text-center">
+            <button onclick='abrirModalEditarVehiculo(${JSON.stringify(v)})' class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-2 py-1 rounded text-xs">
+              ✏️ Editar
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filtrarVehiculos(q) {
+      const t = q.toLowerCase();
+      renderTablaVehiculos(cacheVehiculos.filter(v => v.dominio.toLowerCase().includes(t) || v.titular.toLowerCase().includes(t)));
+    }
+
+    // Arranque inicial y sincronización continua
+    cargarLibroGuardia();
+    cargarPersonas();
+    cargarVehiculos();
+    cargarFuerzaPresente();
+    cargarParametrosOficialServicio();
+
+    setInterval(() => {
+      cargarLibroGuardia();
+      cargarFuerzaPresente();
+    }, 10000);
+  </script>
+</body>
+</html>

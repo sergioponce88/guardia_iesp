@@ -6,24 +6,67 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión SQLite
+// Conexión a la base de datos SQLite
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error al conectar con guardia_iesp.db:', err.message);
   } else {
-    console.log('Conectado a guardia_iesp.db');
+    console.log('Conexión exitosa a guardia_iesp.db');
   }
 });
 
-// Endpoint extractor de foto oficial vía proxy DPDT
+// Creación preventiva de tablas estructurales si no existen
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS personas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dni TEXT UNIQUE,
+      nombre TEXT,
+      apellido TEXT,
+      jerarquia TEXT,
+      rol TEXT,
+      chapa TEXT,
+      area TEXT,
+      credencial_url TEXT,
+      vehiculo_modelo TEXT,
+      vehiculo_patente TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS libro_guardia (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hora TEXT,
+      fecha_completa TEXT,
+      puesto TEXT,
+      accion TEXT,
+      protagonista TEXT,
+      detalle TEXT,
+      rubro TEXT,
+      estado TEXT DEFAULT 'ACTIVO',
+      motivo_anulacion TEXT,
+      notificado_wa INTEGER DEFAULT 0,
+      con_retardo INTEGER DEFAULT 0
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS configuracion_guardia (
+      clave TEXT PRIMARY KEY,
+      valor TEXT
+    )
+  `);
+});
+
+// Endpoint proxy oficial: resuelve el token JWT y extrae la foto con Referer
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
-  if (!url) return res.status(400).send('URL requerida');
+  if (!url) return res.status(400).send('URL de credencial requerida');
 
   try {
     const hash = url.trim().split('/').pop().replace('#', '');
@@ -34,17 +77,16 @@ app.get('/api/extraer-foto', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       },
-      timeout: 8000
+      timeout: 9000
     });
 
     const match = respuestaHtml.data.match(/\/api\/imagen\/[a-zA-Z0-9_\-\.]+/);
     if (!match) {
-      return res.status(404).send('Token de imagen no localizado');
+      return res.status(404).send('Token de imagen no encontrado');
     }
 
     const imagenUrl = `https://credenciales.dpd1.ar${match[0]}`;
 
-    // Descarga con cabecera Referer obligatoria
     const imagenRes = await axios.get(imagenUrl, {
       responseType: 'arraybuffer',
       headers: {
@@ -52,39 +94,58 @@ app.get('/api/extraer-foto', async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
       },
-      timeout: 8000
+      timeout: 9000
     });
 
     res.set('Content-Type', imagenRes.headers['content-type'] || 'image/webp');
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(imagenRes.data);
-
   } catch (error) {
-    console.error('Error al extraer foto:', error.message);
-    res.status(500).send('Error al obtener la imagen');
+    console.error('Error al obtener foto oficial:', error.message);
+    res.status(500).send('Error interno en extracción');
   }
 });
 
-// Búsqueda de personas
+// Búsqueda de personas y cadetes
 app.get('/api/buscar', (req, res) => {
   const query = req.query.q || '';
   const sql = `
     SELECT * FROM personas 
-    WHERE nombre LIKE ? OR dni LIKE ? OR credencial LIKE ? OR jerarquia LIKE ?
-    LIMIT 10
+    WHERE nombre LIKE ? OR apellido LIKE ? OR dni LIKE ? OR chapa LIKE ? OR jerarquia LIKE ?
+    LIMIT 15
   `;
   const parametro = `%${query}%`;
 
-  db.all(sql, [parametro, parametro, parametro, parametro], (err, filas) => {
-    if (err) {
-      console.error('Error en /api/buscar:', err.message);
-      return res.status(500).json({ error: 'Error al buscar personas' });
-    }
+  db.all(sql, [parametro, parametro, parametro, parametro, parametro], (err, filas) => {
+    if (err) return res.status(500).json({ error: err.message });
     res.json(filas || []);
   });
 });
 
-// Lectura de Libro de Guardia
+// Alta de nueva persona / cadete
+app.post('/api/personas', (req, res) => {
+  const { dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
+  const sql = `
+    INSERT INTO personas (dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+  db.run(sql, [dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, success: true });
+  });
+});
+
+// Modificar datos y vehículo de una persona
+app.put('/api/personas/:id', (req, res) => {
+  const { vehiculo_modelo, vehiculo_patente } = req.body;
+  const sql = `UPDATE personas SET vehiculo_modelo = ?, vehiculo_patente = ? WHERE id = ?`;
+  db.run(sql, [vehiculo_modelo, vehiculo_patente, req.params.id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, changes: this.changes });
+  });
+});
+
+// Obtener registros del Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
@@ -94,49 +155,80 @@ app.get('/api/libro-guardia', (req, res) => {
   });
 });
 
-// Registro en Libro de Guardia
+// Registrar entrada / salida en el Libro de Guardia
 app.post('/api/libro-guardia', (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   const now = new Date();
-  const hora = now.toTimeString().split(' ')[0].substring(0, 5);
-  const fechaCompleta = now.toISOString().replace('T', ' ').substring(0, 19);
+  const hora = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const fechaCompleta = `${now.toISOString().split('T')[0]} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const sql = `
     INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 0, 0)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 1, 0)
   `;
 
   db.run(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL'], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, success: true });
+    res.json({ id: this.lastID, success: true, hora });
   });
 });
 
-// Cálculo dinámico de Fuerza Efectiva (sin requerir tablas faltantes)
+// Conteo dinámico de dotación y presentes en el predio
 app.get('/api/fuerza-presente', (req, res) => {
   const hoy = `${new Date().toISOString().split('T')[0]}%`;
-  const sql = `SELECT protagonista, accion FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
+  const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
 
-  db.all(sql, [hoy], (err, filas) => {
-    if (err) return res.json({ presentes: 0, planta: 8, cad1: 1, cad2: 1, cad3: 1, vehiculos: 4 });
+  db.all(sql, [hoy], (err, movimientos) => {
+    let vehiculosAdentro = 0;
+    let plantaAdentro = 0;
+    let cad1Adentro = 0;
+    let cad2Adentro = 0;
+    let cad3Adentro = 0;
 
-    const adentro = new Set();
-    (filas || []).forEach(m => {
-      if (m.accion === 'INGRESO') adentro.add(m.protagonista);
-      if (m.accion === 'EGRESO') adentro.delete(m.protagonista);
+    const estados = {};
+    (movimientos || []).forEach(m => {
+      estados[m.protagonista] = { accion: m.accion, detalle: m.detalle };
+    });
+
+    Object.entries(estados).forEach(([persona, data]) => {
+      if (data.accion === 'INGRESO' || data.accion === 'VEHÍCULO (INGRESO)') {
+        if (data.detalle && (data.detalle.includes('Patente') || data.detalle.includes('móvil') || data.detalle.includes('mando'))) {
+          vehiculosAdentro++;
+        }
+        if (persona.includes('Cadete 1°') || persona.includes('1° Año')) cad1Adentro++;
+        else if (persona.includes('Cadete 2°') || persona.includes('2° Año')) cad2Adentro++;
+        else if (persona.includes('Cadete 3°') || persona.includes('3° Año')) cad3Adentro++;
+        else plantaAdentro++;
+      }
     });
 
     res.json({
-      presentes: adentro.size,
-      planta: 8,
-      cad1: 1,
-      cad2: 1,
-      cad3: 1,
-      vehiculos: 4
+      plantaPresente: plantaAdentro,
+      cad1Presente: cad1Adentro,
+      cad2Presente: cad2Adentro,
+      cad3Presente: cad3Adentro,
+      vehiculosPredio: vehiculosAdentro
     });
+  });
+});
+
+// Oficial de servicio configurado
+app.get('/api/configuracion/:clave', (req, res) => {
+  db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ valor: fila ? fila.valor : null });
+  });
+});
+
+app.post('/api/configuracion', (req, res) => {
+  const { clave, valor } = req.body;
+  const sql = `INSERT INTO configuracion_guardia (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`;
+  db.run(sql, [clave, valor], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`Guardia IESP activa en puerto ${PORT}`);
+  console.log(`Guardia IESP activa en el puerto ${PORT}`);
 });

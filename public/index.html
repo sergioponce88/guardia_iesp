@@ -379,14 +379,15 @@
         return;
       }
       lista.forEach(p => {
+        // Mapeo exacto de las columnas de tu base de datos
         const nom = p.nombre_completo || p.nombre || 'Sin Nombre';
         const jer = p.jerarquia_rol || p.jerarquia || '';
-        const doc = p.dni ? `DNI: ${p.dni}` : 'Sin DNI';
-        const chp = p.chapa || p.credencial_numero || '';
+        const chp = p.cargo_chapa || p.chapa || '';
+        const doc = p.dni ? `DNI: ${p.dni}` : (chp ? `Chapa: ${chp}` : '');
 
         const div = document.createElement('div');
         div.className = 'p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 flex justify-between items-center';
-        div.innerHTML = `<div><strong class="text-xs text-slate-800">${nom}</strong><br><span class="text-[10px] text-slate-500">${jer} - ${doc}</span></div><span class="text-[10px] text-blue-600 font-mono">${chp}</span>`;
+        div.innerHTML = `<div><strong class="text-xs text-slate-800">${nom}</strong><br><span class="text-[10px] text-slate-500">${jer} ${doc ? '- ' + doc : ''}</span></div><span class="text-[10px] text-blue-600 font-mono">${chp}</span>`;
         div.onclick = () => {
           seleccionarPersona(p);
           box.classList.add('hidden');
@@ -401,15 +402,22 @@
       personaSeleccionada = p;
       const nom = p.nombre_completo || p.nombre || 'Personal';
       const jer = p.jerarquia_rol || p.jerarquia || 'Personal';
+      const chp = p.cargo_chapa || p.chapa || 'S/D';
       const doc = p.dni || 'S/D';
-      const chp = p.chapa || p.credencial_numero || 'S/D';
 
       document.getElementById('persona-nombre').innerText = nom;
       document.getElementById('persona-sub').innerText = jer;
       document.getElementById('persona-det').innerText = `DNI: ${doc} | Chapa: ${chp}`;
       document.getElementById('btn-editar').classList.remove('hidden');
 
-      const enlace = p.credencial_url || p.credencial || p.enlace_oficial || p.enlace;
+      // Si credencial_url es null, se arma con credencial_token
+      let enlace = p.credencial_url;
+      if (!enlace && p.credencial_token) {
+        enlace = `https://credenciales.dpd1.ar/publicoQR/${p.credencial_token}`;
+      } else if (!enlace && p.credencial) {
+        enlace = p.credencial;
+      }
+
       const btnCred = document.getElementById('btn-credencial');
       const hashSpan = document.getElementById('persona-hash');
       const imgFoto = document.getElementById('foto-persona');
@@ -417,9 +425,10 @@
       if (enlace) {
         btnCred.href = enlace;
         btnCred.classList.remove('hidden');
-        hashSpan.innerText = '#' + enlace.trim().split('/').pop().replace('#', '').slice(0, 8);
+        const tokenDisplay = p.credencial_token || enlace.trim().split('/').pop().replace('#', '');
+        hashSpan.innerText = '#' + tokenDisplay.slice(0, 8);
 
-        // Extracción de la imagen oficial con Referer mediante el proxy
+        // Extracción mediante el proxy en server.js
         imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
         imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
       } else {
@@ -590,6 +599,7 @@
       alert(`Preparando reporte de ${seleccionados.length} novedades para transmisión por WhatsApp.`);
     }
 
+    // Funciones de Modales
     function abrirModalOficial() { document.getElementById('modal-oficial').classList.remove('hidden'); }
     function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
     async function guardarOficialServicio() {

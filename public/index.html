@@ -519,12 +519,11 @@
     }
 
     // ==========================================
-    // BÚSQUEDA POR VOZ ÓPTIMA PARA CELULAR
+    // BÚSQUEDA POR VOZ SILENCIOSA Y FLUIDA
     // ==========================================
     function iniciarBusquedaPorVoz() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("La búsqueda por voz no está disponible en este navegador. Intente desde Google Chrome.");
         return;
       }
 
@@ -548,11 +547,8 @@
         inputBuscar.dispatchEvent(new Event('input'));
       };
 
-      recognition.onerror = (event) => {
-        console.warn("Aviso de voz:", event.error);
-        if (event.error !== 'no-speech') {
-          alert("No se pudo capturar el audio. Verifique que el sitio cuente con permisos de micrófono.");
-        }
+      recognition.onerror = () => {
+        // Se maneja de forma silenciosa para evitar alertas molestas en pantalla
       };
 
       recognition.onend = () => {
@@ -586,8 +582,6 @@
       } catch (err) {
         console.error("Error cámara:", err);
         statusText.innerText = "Error: no se pudo iniciar la cámara.";
-        alert("No se pudo iniciar la cámara. Verifique permisos.");
-        cerrarCamaraQR();
       }
     }
 
@@ -652,7 +646,6 @@
           const listaEncontrada = await resBusqueda.json();
 
           if (!listaEncontrada || listaEncontrada.length === 0) {
-            alert('No se encontró ningún efectivo con ese apellido en la base de datos.');
             return;
           }
 
@@ -678,7 +671,6 @@
           personaElegida.credencial_url = enlace;
           personaElegida.credencial_token = hash;
           seleccionarPersona(personaElegida);
-          alert(`¡QR asignado con éxito a ${personaElegida.nombre_completo || personaElegida.nombre}!`);
         }
       } catch (err) {
         console.error(err);
@@ -819,7 +811,6 @@
       personaSeleccionada.credencial_url = null;
       personaSeleccionada.credencial_token = null;
       seleccionarPersona(personaSeleccionada);
-      alert('QR desvinculado correctamente.');
     }
 
     async function cargarLibro() {
@@ -858,7 +849,6 @@
 
     async function registrarMovimiento(tipo, modo) {
       if (!personaSeleccionada) {
-        alert('Debe buscar y seleccionar a una persona primero.');
         return;
       }
       const puesto = document.getElementById('sel-puesto').value;
@@ -929,7 +919,6 @@
     async function enviarSeleccionadosWhatsApp() {
       const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
       if (checkboxes.length === 0) {
-        alert('Seleccione con el casillero izquierdo las novedades que desea enviar.');
         return;
       }
 
@@ -1024,7 +1013,6 @@
       if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
       try {
         await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        alert("Efectivo eliminado correctamente.");
         abrirModalFuerzaEfectiva();
       } catch (err) {
         console.error(err);
@@ -1035,7 +1023,6 @@
 
     function abrirModalCredencial() {
       if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
         return;
       }
       document.getElementById('input-credencial-url').value = personaSeleccionada.credencial_url || '';
@@ -1048,7 +1035,6 @@
 
     async function guardarCredencialPersona() {
       if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Debe seleccionar un efectivo registrado en la base de datos.');
         return;
       }
 
@@ -1074,7 +1060,6 @@
       personaSeleccionada.credencial_token = hash;
       seleccionarPersona(personaSeleccionada);
       cerrarModalCredencial();
-      alert('¡Credencial vinculada y guardada correctamente!');
     }
 
     function abrirModalEditarPersona() {
@@ -1089,7 +1074,6 @@
 
     async function guardarEdicionPersona() {
       if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Debe seleccionar un efectivo registrado en la base de datos.');
         return;
       }
       const dni = document.getElementById('edit-dni').value.trim();
@@ -1110,12 +1094,10 @@
 
       seleccionarPersona(personaSeleccionada);
       cerrarModalEditarPersona();
-      alert('Datos personales actualizados con éxito.');
     }
 
     function abrirModalVehiculo() {
       if (!personaSeleccionada) {
-        alert('Debe buscar y seleccionar a una persona primero.');
         return;
       }
       document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.modelo_detectado || '';
@@ -1156,7 +1138,6 @@
       personaSeleccionada.modelo_detectado = modelo;
       seleccionarPersona(personaSeleccionada);
       cerrarModalVehiculo();
-      alert('Vehículo asignado y guardado correctamente.');
     }
 
     async function abrirModalListaVehiculos() {
@@ -1214,7 +1195,6 @@
       const credencial_url = document.getElementById('nuevo-credencial').value.trim();
 
       if (!nombre_completo) {
-        alert('Ingrese el nombre completo.');
         return;
       }
       await fetch('/api/personas', {
@@ -1223,7 +1203,6 @@
         body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
       });
       cerrarModalNuevo();
-      alert('Integrante dado de alta con éxito.');
       abrirModalFuerzaEfectiva();
     }
   </script>

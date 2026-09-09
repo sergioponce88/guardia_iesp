@@ -33,7 +33,7 @@
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
       </button>
-      <button onclick="alert('Fuerza Efectiva total registrada: 328 efectivos.')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+      <button onclick="alert('Fuerza Efectiva registrada: 328 integrantes.')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva (328)
       </button>
       <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
@@ -42,7 +42,7 @@
     </div>
   </header>
 
-  <!-- Banner de Consignas / Oficial -->
+  <!-- Banner Oficial de Servicio -->
   <div class="bg-amber-500 text-slate-900 px-4 py-1 text-xs flex justify-between font-medium shadow-sm">
     <div><span class="font-bold uppercase tracking-wider">OFICIAL DE SERVICIO:</span> <span id="txt-oficial-servicio">OFICIAL SUBAYUDANTE PEDRAZA RAMIRO</span></div>
     <div>Consignas del Turno: Sin consignas especiales emitidas</div>
@@ -110,18 +110,14 @@
             <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace o Código QR Manualmente
           </button>
 
-          <!-- Input de Búsqueda y Botón + Nuevo -->
-          <div class="flex space-x-1.5 relative">
+          <div class="relative">
             <input 
               type="text" 
               id="input-buscar" 
               placeholder="Busque por DNI, Apellido, Chapa o Grado..." 
               autocomplete="off"
-              class="flex-1 pl-3 pr-2 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
+              class="w-full pl-3 pr-2 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
             >
-            <button onclick="abrirModalNuevo()" class="bg-slate-200 hover:bg-slate-300 border border-slate-300 px-2.5 py-1.5 rounded text-xs font-bold flex items-center transition-colors">
-              <i class="fa-solid fa-plus mr-1"></i> Nuevo
-            </button>
             <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
           </div>
 
@@ -276,48 +272,7 @@
     </div>
   </div>
 
-  <!-- Modal Nuevo Integrante -->
-  <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Alta de Integrante
-      </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="nuevo-dni" class="w-full border rounded p-1.5 text-xs">
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">Chapa / Matrícula</label>
-          <input type="text" id="nuevo-chapa" class="w-full border rounded p-1.5 text-xs">
-        </div>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS">
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <select id="nuevo-jerarquia" class="w-full border rounded p-1.5 text-xs">
-          <option value="Cadete 1° Año">Cadete 1° Año</option>
-          <option value="Cadete 2° Año">Cadete 2° Año</option>
-          <option value="Cadete 3° Año">Cadete 3° Año</option>
-          <option value="Planta Policial">Planta Policial</option>
-          <option value="Visita">Visita</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
-        <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/...">
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalNuevo()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
-        <button onclick="guardarNuevoIntegrante()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs">Dar de Alta</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Declarar / Asignar Vehículo -->
+  <!-- Modal Asignar Vehículo -->
   <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
@@ -338,12 +293,12 @@
     </div>
   </div>
 
-  <!-- Modal Listado General de Vehículos -->
+  <!-- Modal Listado de Vehículos -->
   <div id="modal-lista-vehiculos" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-car-side text-emerald-600 mr-2"></i> Parque Vehicular Registrado
+          <i class="fa-solid fa-car-side text-emerald-600 mr-2"></i> Vehículos Registrados en el Sistema
         </h3>
         <button onclick="cerrarModalListaVehiculos()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
@@ -462,14 +417,31 @@
         imgFoto.src = placeholderSvg;
       }
 
-      const pat = p.vehiculo_patente || p.patente || p.dominio || '';
-      const mod = p.vehiculo_modelo || p.modelo || p.marca || '';
+      // Escaneo flexible de todos los campos para detectar patente y modelo
+      let patente = null;
+      let modelo = null;
 
-      if (pat && pat.trim() !== '' && pat !== 'null' && pat !== 'undefined') {
+      for (const [clave, valor] of Object.entries(p)) {
+        if (!valor || typeof valor !== 'string') continue;
+        const k = clave.toLowerCase();
+        const v = valor.trim();
+
+        if ((k.includes('patente') || k.includes('dominio')) && v !== '' && v !== 'null') {
+          patente = v;
+        }
+        if ((k.includes('modelo') || k.includes('marca') || k.includes('rodado') || k.includes('vehiculo')) && v !== '' && v !== 'null') {
+          modelo = v;
+        }
+      }
+
+      personaSeleccionada.patente_detectada = patente;
+      personaSeleccionada.modelo_detectado = modelo;
+
+      if (patente) {
         document.getElementById('seccion-con-vehiculo').classList.remove('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-        document.getElementById('persona-patente').innerText = pat.toUpperCase();
-        document.getElementById('persona-modelo').innerText = mod || 'Vehículo Registrado';
+        document.getElementById('persona-patente').innerText = patente.toUpperCase();
+        document.getElementById('persona-modelo').innerText = modelo || 'Vehículo Registrado';
       } else {
         document.getElementById('seccion-con-vehiculo').classList.add('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.remove('hidden');
@@ -556,7 +528,7 @@
 
       const nom = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
       const jer = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      const pat = personaSeleccionada.vehiculo_patente || personaSeleccionada.patente || '';
+      const pat = personaSeleccionada.patente_detectada || personaSeleccionada.vehiculo_patente || '';
 
       if (modo.includes('Móvil')) {
         accion = `VEHÍCULO (${tipo})`;
@@ -618,7 +590,7 @@
     async function enviarSeleccionadosWhatsApp() {
       const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
       if (checkboxes.length === 0) {
-        alert('Seleccione al menos un movimiento con el casillero izquierdo para enviar.');
+        alert('Seleccione con el casillero izquierdo las novedades que desea enviar.');
         return;
       }
 
@@ -630,7 +602,7 @@
       const fecha = document.getElementById('filtro-fecha').value;
       const oficial = document.getElementById('txt-oficial-servicio').innerText;
 
-      let mensaje = `*PARTE DIARIO DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
+      let mensaje = `*PARTE DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
       mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial}\n\n`;
 
       filasAEnviar.forEach((m, idx) => {
@@ -638,7 +610,6 @@
         mensaje += `   _${m.detalle}_ (Puesto: ${m.puesto})\n\n`;
       });
 
-      // Marcar en backend como notificados
       await fetch('/api/libro-guardia/marcar-enviados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -646,13 +617,10 @@
       });
 
       cargarLibro();
-
-      // Abrir WhatsApp Web con el texto formateado
-      const urlWhatsapp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
-      window.open(urlWhatsapp, '_blank');
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
-    // Modal Oficial de Servicio
+    // Modales
     function abrirModalOficial() {
       document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
       document.getElementById('modal-oficial').classList.remove('hidden');
@@ -670,37 +638,13 @@
       cerrarModalOficial();
     }
 
-    // Modal Nuevo Integrante
-    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
-    function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
-    async function guardarNuevoIntegrante() {
-      const dni = document.getElementById('nuevo-dni').value.trim();
-      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
-      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
-      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
-      const credencial_url = document.getElementById('nuevo-credencial').value.trim();
-
-      if (!nombre_completo) {
-        alert('Ingrese el nombre completo.');
-        return;
-      }
-      await fetch('/api/personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
-      });
-      cerrarModalNuevo();
-      alert('Integrante dado de alta con éxito.');
-    }
-
-    // Modal Asignar Vehículo
     function abrirModalVehiculo() {
       if (!personaSeleccionada) {
         alert('Debe buscar y seleccionar a una persona primero.');
         return;
       }
-      document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.vehiculo_modelo || '';
-      document.getElementById('vehiculo-patente-input').value = personaSeleccionada.vehiculo_patente || '';
+      document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.modelo_detectado || '';
+      document.getElementById('vehiculo-patente-input').value = personaSeleccionada.patente_detectada || '';
       document.getElementById('modal-vehiculo').classList.remove('hidden');
     }
     function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
@@ -716,13 +660,12 @@
         body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
       });
 
-      personaSeleccionada.vehiculo_modelo = modelo;
-      personaSeleccionada.vehiculo_patente = patente;
+      personaSeleccionada.patente_detectada = patente;
+      personaSeleccionada.modelo_detectado = modelo;
       seleccionarPersona(personaSeleccionada);
       cerrarModalVehiculo();
     }
 
-    // Modal Ver Parque Vehicular
     async function abrirModalListaVehiculos() {
       try {
         const res = await fetch('/api/vehiculos');
@@ -731,20 +674,15 @@
         tbody.innerHTML = '';
 
         if (!lista || lista.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No hay vehículos registrados en la base.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No se encontraron vehículos registrados.</td></tr>';
         } else {
           lista.forEach(v => {
-            const nom = v.nombre_completo || v.nombre || 'S/D';
-            const jer = v.jerarquia_rol || v.jerarquia || '';
-            const mod = v.vehiculo_modelo || v.modelo || 'No especificado';
-            const pat = (v.vehiculo_patente || v.patente || '').toUpperCase();
-
             tbody.innerHTML += `
               <tr class="hover:bg-slate-50">
-                <td class="p-2 font-bold text-slate-800">${nom}</td>
-                <td class="p-2 text-slate-500">${jer}</td>
-                <td class="p-2 text-slate-700">${mod}</td>
-                <td class="p-2 font-mono font-bold text-blue-600">${pat}</td>
+                <td class="p-2 font-bold text-slate-800">${v.titular}</td>
+                <td class="p-2 text-slate-500">${v.jerarquia}</td>
+                <td class="p-2 text-slate-700">${v.modelo}</td>
+                <td class="p-2 font-mono font-bold text-blue-600">${v.patente}</td>
               </tr>
             `;
           });

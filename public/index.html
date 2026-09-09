@@ -283,7 +283,7 @@
     </div>
   </div>
 
-  <!-- Modal Listado Fuerza Efectiva -->
+  <!-- Modal Listado Fuerza Efectiva Completo -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -432,7 +432,6 @@
     let directorioGlobal = [];
     let streamVideo = null;
     let scanInterval = null;
-    let qrEscaneadoTemporal = null;
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -545,7 +544,7 @@
         if (datos && datos.length > 0) {
           seleccionarPersona(datos[0]);
         } else {
-          // FLUJO RESTAURADO: Si no está en la base, pide apellido/nombre por prompt, lo busca y le asigna el QR al instante
+          // FLUJO ORIGINAL: Pide apellido por prompt, busca y asigna el QR automáticamente
           const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asignarlo:");
           if (!apellidoBusqueda) return;
 
@@ -567,7 +566,6 @@
             }
           }
 
-          // Vincular automáticamente el QR a esta persona en la base de datos
           await fetch(`/api/personas/${personaElegida.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -693,7 +691,6 @@
 
     function limpiarSeleccion() {
       personaSeleccionada = null;
-      qrEscaneadoTemporal = null;
       document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
       document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
       document.getElementById('persona-det').innerText = 'DNI / N° de Legajo';
@@ -842,9 +839,10 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
+    // Modal Fuerza Efectiva (Carga TODO el personal y cadetes de la base)
     async function abrirModalFuerzaEfectiva() {
       try {
-        const res = await fetch('/api/buscar?q=a');
+        const res = await fetch('/api/personal-completo');
         const lista = await res.json();
         directorioGlobal = Array.isArray(lista) ? lista : [];
         renderizarDirectorio(directorioGlobal);
@@ -858,7 +856,7 @@
       const tbody = document.getElementById('tabla-directorio-body');
       tbody.innerHTML = '';
       if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin registros.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin registros en la base de datos.</td></tr>';
         return;
       }
       lista.forEach(p => {

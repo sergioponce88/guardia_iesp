@@ -1105,40 +1105,48 @@
     }
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
-    // FUNCIÓN DE GUARDADO DE EDICIÓN CORREGIDA Y SINCRONIZADA
+    // FUNCIÓN DE GUARDADO POR DNI DIRECTO (SOLUCIÓN DEFINITIVA)
     async function guardarEdicionPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Seleccione un efectivo primero.');
-        return;
-      }
-      const dni = document.getElementById('edit-dni').value.trim();
+      const dniInput = document.getElementById('edit-dni').value.trim();
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
       const nombre_completo = document.getElementById('edit-nombre').value.trim().toUpperCase();
       const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
 
+      if (!dniInput) {
+        alert('El DNI es obligatorio.');
+        return;
+      }
+
       try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
+        const resBusq = await fetch(`/api/buscar?q=${encodeURIComponent(dniInput)}`);
+        const encontrados = await resBusq.json();
+
+        if (!encontrados || encontrados.length === 0) {
+          alert('No se encontró el DNI en la base de datos para actualizar.');
+          return;
+        }
+
+        const idReal = encontrados[0].id;
+
+        const respuesta = await fetch(`/api/personas/${idReal}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
+          body: JSON.stringify({ dni: dniInput, cargo_chapa, nombre_completo, jerarquia_rol })
         });
 
         const resultado = await respuesta.json();
         if (resultado.success) {
-          // Actualizamos la variable global con los datos que se acaban de guardar
-          personaSeleccionada.dni = dni;
-          personaSeleccionada.cargo_chapa = cargo_chapa;
-          personaSeleccionada.nombre_completo = nombre_completo;
-          personaSeleccionada.jerarquia_rol = jerarquia_rol;
-
-          seleccionarPersona(personaSeleccionada);
           cerrarModalEditarPersona();
-          alert('¡Datos personales actualizados y guardados con éxito!');
+          alert('¡Guardado con éxito!');
+          const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(dniInput)}`);
+          const listaFresca = await resFresca.json();
+          if (listaFresca.length > 0) seleccionarPersona(listaFresca[0]);
         } else {
-          alert('No se pudo guardar la modificación.');
+          alert('El servidor rechazó la actualización.');
         }
       } catch (err) {
         console.error("Error al guardar edición:", err);
+        alert('Error de red al intentar guardar.');
       }
     }
 

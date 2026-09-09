@@ -174,7 +174,7 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// Actualizar datos de persona o vehículo por ID
+// Actualizar datos de persona, vehículo o credencial por ID
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol } = req.body;
   
@@ -189,7 +189,10 @@ app.put('/api/personas/:id', (req, res) => {
     if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
     if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
     if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
-    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
+    if (cargo_chapa !== undefined) { 
+      updates.push("cargo_chapa = ?"); 
+      params.push(cargo_chapa); 
+    }
     if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
     if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
 

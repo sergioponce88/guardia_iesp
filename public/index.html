@@ -34,7 +34,6 @@
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
       </button>
-      <!-- BOTÓN FUERZA EFECTIVA CON LISTADO SELECTIVO -->
       <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva
       </button>
@@ -137,19 +136,15 @@
                 >
               </div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between">
-                  <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
-                  <div class="space-x-1">
-                    <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold" title="Editar Datos Personales">
-                      <i class="fa-solid fa-user-pen"></i> Datos
-                    </button>
-                    <button id="btn-editar" onclick="abrirModalVehiculo()" class="text-[10px] text-emerald-600 hover:underline hidden font-semibold" title="Editar Vehículo">
-                      <i class="fa-solid fa-car"></i> Móvil
-                    </button>
-                  </div>
-                </div>
+                <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
                 <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
                 <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
+                <!-- Botones de Edición Personal ubicados ordenadamente debajo -->
+                <div class="flex space-x-2 mt-1">
+                  <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold">
+                    <i class="fa-solid fa-user-pen"></i> Editar Datos
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -171,8 +166,9 @@
               >
                 Abrir Validación Oficial en Línea
               </a>
-              <button id="btn-vincular-qr" onclick="vincularQrAEfectivoActual()" class="hidden w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 rounded text-[11px] mt-1 shadow-sm transition-colors">
-                <i class="fa-solid fa-link mr-1"></i> Vincular este QR a este Nombre
+              <!-- Botón rápido para guardar/asociar el QR escaneado al efectivo actual -->
+              <button id="btn-asociar-qr" onclick="asociarQrAEfectivoActual()" class="hidden w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 rounded text-[11px] mt-1 shadow-sm transition-colors">
+                <i class="fa-solid fa-link mr-1"></i> Guardar QR en este Perfil
               </button>
             </div>
 
@@ -181,7 +177,10 @@
               <div id="seccion-con-vehiculo" class="hidden space-y-1.5">
                 <div class="flex justify-between items-center text-xs">
                   <span class="text-slate-500 text-[10px] uppercase font-bold">VEHÍCULO REGISTRADO:</span>
-                  <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300 font-mono"></span>
+                  <div class="space-x-2">
+                    <button onclick="abrirModalVehiculo()" class="text-[10px] text-emerald-700 hover:underline font-semibold"><i class="fa-solid fa-pen"></i> Editar</button>
+                    <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300 font-mono"></span>
+                  </div>
                 </div>
                 <p id="persona-modelo" class="text-xs font-semibold text-slate-700"></p>
                 <div class="grid grid-cols-2 gap-2 pt-1">
@@ -264,7 +263,7 @@
     </div>
   </main>
 
-  <!-- MODAL DE CÁMARA VISOR EN TIEMPO REAL -->
+  <!-- MODAL CÁMARA QR -->
   <div id="modal-scanner" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-4 max-w-md w-full space-y-3 shadow-2xl relative">
       <div class="flex justify-between items-center border-b pb-2">
@@ -285,7 +284,7 @@
     </div>
   </div>
 
-  <!-- Modal Listado Fuerza Efectiva Completa -->
+  <!-- Modal Directorio Fuerza Efectiva -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -345,7 +344,7 @@
     </div>
   </div>
 
-  <!-- Modal Asignar Vehículo -->
+  <!-- Modal Asignar / Editar Vehículo -->
   <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
@@ -417,7 +416,7 @@
     let directorioGlobal = [];
     let streamVideo = null;
     let scanInterval = null;
-    let tokenQrPendiente = null;
+    let qrEscaneadoTemporal = null;
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -530,41 +529,41 @@
         if (datos && datos.length > 0) {
           seleccionarPersona(datos[0]);
         } else {
-          tokenQrPendiente = enlace;
+          qrEscaneadoTemporal = enlace;
           seleccionarPersona({
-            nombre_completo: 'Efectivo sin credencial vinculada',
-            jerarquia_rol: 'Busque su nombre abajo para asociarlo',
+            nombre_completo: 'Efectivo sin vincular',
+            jerarquia_rol: 'Busque su nombre abajo para asociar este QR',
             cargo_chapa: 'S/D',
             dni: 'S/D',
             credencial_url: enlace
           });
-          alert('Este código QR aún no está asignado. Busque el nombre del efectivo en la barra de búsqueda y haga clic en "Vincular este QR a este Nombre".');
+          alert('Este QR no está asociado a nadie. Busque el nombre del efectivo en la barra de búsqueda y haga clic en "Guardar QR en este Perfil".');
         }
       } catch (err) {
         console.error(err);
       }
     }
 
-    async function vincularQrAEfectivoActual() {
-      if (!personaSeleccionada || !tokenQrPendiente) return;
+    async function asociarQrAEfectivoActual() {
+      if (!personaSeleccionada || !qrEscaneadoTemporal) return;
       const idPersona = personaSeleccionada.id;
       if (!idPersona) {
         alert('Seleccione primero a un efectivo existente desde la barra de búsqueda.');
         return;
       }
 
-      const hash = tokenQrPendiente.trim().split('/').pop().replace('#', '');
+      const hash = qrEscaneadoTemporal.trim().split('/').pop().replace('#', '');
       await fetch(`/api/personas/${idPersona}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credencial_url: tokenQrPendiente, credencial_token: hash })
+        body: JSON.stringify({ credencial_url: qrEscaneadoTemporal, credencial_token: hash })
       });
 
-      personaSeleccionada.credencial_url = tokenQrPendiente;
+      personaSeleccionada.credencial_url = qrEscaneadoTemporal;
       personaSeleccionada.credencial_token = hash;
-      tokenQrPendiente = null;
+      qrEscaneadoTemporal = null;
       seleccionarPersona(personaSeleccionada);
-      alert('¡Credencial vinculada con éxito!');
+      alert('¡Credencial vinculada y guardada con éxito!');
     }
 
     async function pegarQRManual() {
@@ -609,8 +608,12 @@
       document.getElementById('persona-nombre').innerText = nom;
       document.getElementById('persona-sub').innerText = jer;
       document.getElementById('persona-det').innerText = `DNI: ${doc} | N° Legajo: ${chp}`;
-      document.getElementById('btn-editar').classList.remove('hidden');
-      document.getElementById('btn-editar-persona').classList.remove('hidden');
+      
+      if (p.id) {
+        document.getElementById('btn-editar-persona').classList.remove('hidden');
+      } else {
+        document.getElementById('btn-editar-persona').classList.add('hidden');
+      }
 
       let enlace = p.credencial_url;
       if (!enlace && p.credencial_token) {
@@ -620,14 +623,14 @@
       }
 
       const btnCred = document.getElementById('btn-credencial');
-      const btnVincular = document.getElementById('btn-vincular-qr');
+      const btnAsociar = document.getElementById('btn-asociar-qr');
       const hashSpan = document.getElementById('persona-hash');
       const imgFoto = document.getElementById('foto-persona');
 
       if (enlace) {
         btnCred.href = enlace;
         btnCred.classList.remove('hidden');
-        btnVincular.classList.add('hidden');
+        btnAsociar.classList.add('hidden');
         const tokenDisplay = p.credencial_token || enlace.trim().split('/').pop().replace('#', '');
         hashSpan.innerText = '#' + tokenDisplay.slice(0, 8);
 
@@ -637,10 +640,10 @@
         btnCred.classList.add('hidden');
         hashSpan.innerText = 'Sin Enlace';
         imgFoto.src = placeholderSvg;
-        if (tokenQrPendiente && p.id) {
-          btnVincular.classList.remove('hidden');
+        if (qrEscaneadoTemporal && p.id) {
+          btnAsociar.classList.remove('hidden');
         } else {
-          btnVincular.classList.add('hidden');
+          btnAsociar.classList.add('hidden');
         }
       }
 
@@ -676,14 +679,13 @@
 
     function limpiarSeleccion() {
       personaSeleccionada = null;
-      tokenQrPendiente = null;
+      qrEscaneadoTemporal = null;
       document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
       document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
       document.getElementById('persona-det').innerText = 'DNI / N° Legajo';
       document.getElementById('foto-persona').src = placeholderSvg;
       document.getElementById('btn-credencial').classList.add('hidden');
-      document.getElementById('btn-vincular-qr').classList.add('hidden');
-      document.getElementById('btn-editar').classList.add('hidden');
+      document.getElementById('btn-asociar-qr').classList.add('hidden');
       document.getElementById('btn-editar-persona').classList.add('hidden');
       document.getElementById('persona-hash').innerText = 'Sin Enlace';
       document.getElementById('seccion-con-vehiculo').classList.add('hidden');
@@ -827,10 +829,9 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
-    // Modal Fuerza Efectiva (Directorio Completo con Selección)
     async function abrirModalFuerzaEfectiva() {
       try {
-        const res = await fetch('/api/buscar?q=a'); // Trae un listado amplio
+        const res = await fetch('/api/buscar?q=a');
         const lista = await res.json();
         directorioGlobal = Array.isArray(lista) ? lista : [];
         renderizarDirectorio(directorioGlobal);
@@ -884,7 +885,6 @@
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
 
-    // Modal Editar Datos Personales
     function abrirModalEditarPersona() {
       if (!personaSeleccionada) return;
       document.getElementById('edit-dni').value = personaSeleccionada.dni || '';
@@ -921,7 +921,6 @@
       alert('Datos personales actualizados con éxito.');
     }
 
-    // Modal Vehículo
     function abrirModalVehiculo() {
       if (!personaSeleccionada) {
         alert('Debe buscar y seleccionar a una persona primero.');

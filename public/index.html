@@ -54,30 +54,30 @@
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
           Fuerza Efectiva en el Instituto (Tiempo Real)
         </h2>
-        <button onclick="cargarLibro()" class="text-xs text-blue-600 hover:underline flex items-center font-medium">
+        <button onclick="cargarFuerza()" class="text-xs text-blue-600 hover:underline flex items-center font-medium">
           <i class="fa-solid fa-arrows-rotate mr-1"></i> Actualizar
         </button>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">PLANTA POLICIAL</span>
-          <span class="text-base font-bold text-slate-800">8 / 131</span>
+          <span id="f-planta" class="text-base font-bold text-slate-800">8 / 131</span>
         </div>
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 1° AÑO</span>
-          <span class="text-base font-bold text-slate-800">1 / 102</span>
+          <span id="f-cad1" class="text-base font-bold text-slate-800">1 / 102</span>
         </div>
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 2° AÑO</span>
-          <span class="text-base font-bold text-slate-800">1 / 50</span>
+          <span id="f-cad2" class="text-base font-bold text-slate-800">1 / 50</span>
         </div>
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 3° AÑO</span>
-          <span class="text-base font-bold text-slate-800">1 / 74</span>
+          <span id="f-cad3" class="text-base font-bold text-slate-800">1 / 74</span>
         </div>
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">VEHÍCULOS EN PREDIO</span>
-          <span class="text-base font-bold text-slate-800">4</span>
+          <span id="f-vehiculos" class="text-base font-bold text-slate-800">4</span>
         </div>
         <div class="bg-slate-50 border border-slate-200 rounded p-2">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">COMISIONES EXT.</span>
@@ -210,6 +210,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
       cargarLibro();
+      cargarFuerza();
 
       const input = document.getElementById('input-buscar');
       input.addEventListener('input', async (e) => {
@@ -231,7 +232,7 @@
     function mostrarResultadosBusqueda(lista) {
       const box = document.getElementById('resultados-busqueda');
       box.innerHTML = '';
-      if (lista.length === 0) {
+      if (!Array.isArray(lista) || lista.length === 0) {
         box.innerHTML = '<div class="p-2 text-xs text-slate-400">Sin resultados</div>';
         box.classList.remove('hidden');
         return;
@@ -266,7 +267,7 @@
         btnCred.classList.remove('hidden');
         hashSpan.innerText = enlace.slice(-10);
 
-        // Llamada al proxy con la URL oficial de la credencial
+        // Extracción mediante proxy
         imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
         imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
       } else {
@@ -293,26 +294,44 @@
         const datos = await res.json();
         const tbody = document.getElementById('tabla-guardia');
         tbody.innerHTML = '';
-        datos.forEach(row => {
-          const badgeClass = row.accion === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
-          tbody.innerHTML += `
-            <tr class="hover:bg-slate-50">
-              <td class="p-2 text-center"><input type="checkbox"></td>
-              <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
-              <td class="p-2">${row.puesto}</td>
-              <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
-              <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
-              <td class="p-2 text-slate-500">${row.detalle}</td>
-              <td class="p-2 text-center">
-                <span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold">
-                  <i class="fa-solid fa-check mr-1"></i> Enviado
-                </span>
-              </td>
-            </tr>
-          `;
-        });
+        if (Array.isArray(datos)) {
+          datos.forEach(row => {
+            const badgeClass = row.accion === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+            tbody.innerHTML += `
+              <tr class="hover:bg-slate-50">
+                <td class="p-2 text-center"><input type="checkbox"></td>
+                <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
+                <td class="p-2">${row.puesto}</td>
+                <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
+                <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
+                <td class="p-2 text-slate-500">${row.detalle}</td>
+                <td class="p-2 text-center">
+                  <span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold">
+                    <i class="fa-solid fa-check mr-1"></i> Enviado
+                  </span>
+                </td>
+              </tr>
+            `;
+          });
+        }
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    async function cargarFuerza() {
+      try {
+        const res = await fetch('/api/fuerza-presente');
+        const d = await res.json();
+        if (d) {
+          document.getElementById('f-planta').innerText = `${d.planta || 8} / 131`;
+          document.getElementById('f-cad1').innerText = `${d.cad1 || 1} / 102`;
+          document.getElementById('f-cad2').innerText = `${d.cad2 || 1} / 50`;
+          document.getElementById('f-cad3').innerText = `${d.cad3 || 1} / 74`;
+          document.getElementById('f-vehiculos').innerText = d.vehiculos || 4;
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
 
@@ -338,6 +357,7 @@
         });
         limpiarSeleccion();
         cargarLibro();
+        cargarFuerza();
       } catch (e) {
         console.error(e);
       }

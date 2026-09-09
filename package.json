@@ -1,21 +1,15 @@
 {
   "name": "guardia-iesp",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sistema de Control de Guardia IESP",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "csv-parser": "^3.2.1",
-    "express": "^5.2.1",
-    "localtunnel": "^2.0.2",
-    "sqlite3": "^6.0.1",
-    "xlsx": "^0.18.5"
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7",
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12"
   }
 }

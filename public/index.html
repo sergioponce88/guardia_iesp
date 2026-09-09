@@ -13,7 +13,6 @@
 </head>
 <body class="bg-slate-100 text-slate-800 text-sm">
 
-  <!-- Header Superior -->
   <header class="bg-slate-900 text-white px-4 py-2 flex flex-wrap items-center justify-between border-b border-slate-700 shadow">
     <div class="flex items-center space-x-3">
       <div>
@@ -34,7 +33,7 @@
         <i class="fa-solid fa-user-shield mr-1"></i> Oficial de Servicio
       </button>
       <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow">
-        <i class="fa-solid fa-users mr-1"></i> Fuerza Efectiva (<span id="total-fuerza">328</span>)
+        <i class="fa-solid fa-users mr-1"></i> Fuerza Efectiva (328)
       </button>
       <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow">
         <i class="fa-solid fa-car mr-1"></i> Vehículos
@@ -42,22 +41,20 @@
     </div>
   </header>
 
-  <!-- Barra de Consignas / Oficial -->
   <div class="bg-amber-500 text-slate-900 px-4 py-1 text-xs flex justify-between font-medium">
-    <div><span class="font-bold uppercase tracking-wider">OFICIAL DE SERVICIO:</span> Sin Asignar (Clic en Oficial de Servicio)</div>
+    <div><span class="font-bold uppercase tracking-wider">OFICIAL DE SERVICIO:</span> OFICIAL SUBAYUDANTE PEDRAZA RAMIRO</div>
     <div>Consignas del Turno: Sin consignas especiales emitidas</div>
   </div>
 
   <main class="p-4 max-w-7xl mx-auto space-y-4">
 
-    <!-- Tarjetas de Fuerza Efectiva en Tiempo Real -->
     <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xs font-bold text-slate-700 flex items-center uppercase tracking-wider">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
           Fuerza Efectiva en el Instituto (Tiempo Real)
         </h2>
-        <button onclick="cargarFuerza()" class="text-xs text-blue-600 hover:underline flex items-center font-medium">
+        <button onclick="cargarLibro()" class="text-xs text-blue-600 hover:underline flex items-center font-medium">
           <i class="fa-solid fa-arrows-rotate mr-1"></i> Actualizar
         </button>
       </div>
@@ -89,15 +86,13 @@
       </div>
     </div>
 
-    <!-- Panel Operativo: Ingreso / Egreso y Libro de Guardia -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
-      <!-- Columna Izquierda: Búsqueda y Control de Acceso -->
       <div class="lg:col-span-4 space-y-3">
         <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
           <div class="flex justify-between items-center">
             <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">
-              <i class="fa-solid fa-address-card mr-1 text-slate-500"></i> 1. Ingreso / Egreso
+              <i class="fa-solid fa-address-card mr-1 text-slate-500"></i> 1. Ingreso / Egreso Personal, Cadetes y Visitas
             </h3>
             <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
           </div>
@@ -106,7 +101,6 @@
             <i class="fa-solid fa-qrcode mr-2"></i> Escanear QR de Credencial
           </button>
 
-          <!-- Input Buscador -->
           <div class="relative">
             <input 
               type="text" 
@@ -115,18 +109,12 @@
               autocomplete="off"
               class="w-full pl-3 pr-8 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
             >
-            <button class="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs">
-              <i class="fa-solid fa-user-plus"></i>
-            </button>
-            <!-- Dropdown de resultados -->
             <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
           </div>
 
-          <!-- Tarjeta del Protagonista Seleccionado -->
           <div id="tarjeta-persona" class="bg-slate-50 border border-slate-200 rounded p-3 relative space-y-3">
             <button onclick="limpiarSeleccion()" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
             <div class="flex items-center space-x-3">
-              <!-- Imagen con endpoint proxy -->
               <div class="w-14 h-14 bg-slate-200 rounded-full border border-slate-300 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
                 <img 
                   id="foto-persona" 
@@ -136,9 +124,9 @@
                 >
               </div>
               <div class="flex-1 min-w-0">
-                <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">LAZARTE, JOSÉ MAXIMILIANO</h4>
-                <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Cadete 2° Año</p>
-                <p id="persona-det" class="text-[10px] text-slate-400">Cargo/Rol: 20435 | Área: Cuerpo de Cadetes</p>
+                <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
+                <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Área</p>
+                <p id="persona-det" class="text-[10px] text-slate-400">Cargo/Rol | Área</p>
               </div>
             </div>
 
@@ -146,23 +134,21 @@
               <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span> FUERA DEL INSTITUTO
             </div>
 
-            <!-- Sección Enlace Oficial -->
             <div class="space-y-1">
               <div class="flex justify-between text-[11px]">
                 <span class="text-slate-600 font-semibold flex items-center"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial Digital Policial</span>
-                <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">#25adidcn...</span>
+                <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">Sin Enlace</span>
               </div>
               <a 
                 id="btn-credencial" 
                 href="#" 
                 target="_blank" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs block text-center shadow-sm"
+                class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs block text-center shadow-sm"
               >
                 Abrir Validación Oficial en Línea
               </a>
             </div>
 
-            <!-- Botones de Acción -->
             <div class="space-y-2 pt-2 border-t border-slate-200">
               <span class="text-[10px] uppercase font-bold text-slate-500 block">Pase Peatonal (A Pie)</span>
               <div class="grid grid-cols-2 gap-2">
@@ -178,7 +164,6 @@
         </div>
       </div>
 
-      <!-- Columna Derecha: Libro de Guardia -->
       <div class="lg:col-span-8">
         <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
           <div class="flex flex-wrap justify-between items-center gap-2">
@@ -196,7 +181,6 @@
             </div>
           </div>
 
-          <!-- Tabla del Libro -->
           <div class="overflow-x-auto custom-scroll border border-slate-200 rounded">
             <table class="w-full text-left text-xs border-collapse">
               <thead class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
@@ -210,9 +194,7 @@
                   <th class="p-2 text-center">WhatsApp / Acción</th>
                 </tr>
               </thead>
-              <tbody id="tabla-guardia" class="divide-y divide-slate-200">
-                <!-- Se llena dinámicamente -->
-              </tbody>
+              <tbody id="tabla-guardia" class="divide-y divide-slate-200"></tbody>
             </table>
           </div>
         </div>
@@ -228,7 +210,6 @@
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
       cargarLibro();
-      cargarFuerza();
 
       const input = document.getElementById('input-buscar');
       input.addEventListener('input', async (e) => {
@@ -285,7 +266,7 @@
         btnCred.classList.remove('hidden');
         hashSpan.innerText = enlace.slice(-10);
 
-        // Dispara la descarga mediante el proxy de extracción
+        // Llamada al proxy con la URL oficial de la credencial
         imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
         imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
       } else {
@@ -302,6 +283,7 @@
       document.getElementById('persona-det').innerText = '';
       document.getElementById('foto-persona').src = placeholderSvg;
       document.getElementById('btn-credencial').classList.add('hidden');
+      document.getElementById('persona-hash').innerText = 'Sin Enlace';
     }
 
     async function cargarLibro() {
@@ -356,19 +338,6 @@
         });
         limpiarSeleccion();
         cargarLibro();
-        cargarFuerza();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function cargarFuerza() {
-      try {
-        const res = await fetch('/api/fuerza-presente');
-        const datos = await res.json();
-        if (Array.isArray(datos)) {
-          document.getElementById('total-fuerza').innerText = datos.length;
-        }
       } catch (e) {
         console.error(e);
       }

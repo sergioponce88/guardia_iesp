@@ -13,13 +13,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('Error al conectar con guardia_iesp.db:', err.message);
+    console.error('Error al conectar con la base de datos:', err.message);
   } else {
-    console.log('Conectado exitosamente a guardia_iesp.db');
+    console.log('Conectado exitosamente a la base de datos');
   }
 });
 
+// Estructuras base seguras y garantizadas
 db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS personas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dni TEXT,
+      nombre_completo TEXT,
+      jerarquia_rol TEXT,
+      cargo_chapa TEXT,
+      credencial_url TEXT,
+      credencial_token TEXT,
+      vehiculo_modelo TEXT,
+      vehiculo_patente TEXT
+    )
+  `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS libro_guardia (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,16 +99,9 @@ app.get('/api/extraer-foto', async (req, res) => {
 });
 
 app.get('/api/personal-completo', (req, res) => {
-  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
-    if (err || !tablas || tablas.length === 0) return res.json([]);
-    const nombreTabla = tablas.find(t => 
-      ['personas', 'personal', 'cadetes', 'fuerza', 'integrantes'].includes(t.name.toLowerCase())
-    )?.name || tablas.find(t => t.name !== 'libro_guardia' && t.name !== 'configuracion_guardia')?.name || tablas[0].name;
-
-    db.all(`SELECT * FROM ${nombreTabla} ORDER BY id ASC`, [], (e, filas) => {
-      if (e) return res.json([]);
-      res.json(filas || []);
-    });
+  db.all(`SELECT * FROM personas ORDER BY id ASC`, [], (e, filas) => {
+    if (e) return res.json([]);
+    res.json(filas || []);
   });
 });
 
@@ -101,137 +109,77 @@ app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
 
-  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
-    if (err || !tablas || tablas.length === 0) return res.json([]);
-
-    const nombreTabla = tablas.find(t => 
-      ['personas', 'personal', 'cadetes', 'fuerza', 'integrantes'].includes(t.name.toLowerCase())
-    )?.name || tablas.find(t => t.name !== 'libro_guardia' && t.name !== 'configuracion_guardia')?.name || tablas[0].name;
-
-    db.all(`PRAGMA table_info(${nombreTabla})`, [], (errPragma, cols) => {
-      if (errPragma || !cols || cols.length === 0) return res.json([]);
-
-      const campos = cols.map(c => c.name).filter(c => !['id', 'created_at'].includes(c));
-      const where = campos.map(c => `CAST(${c} AS TEXT) LIKE ?`).join(' OR ');
-      
-      const palabras = q.split(/\s+/);
-      let sqlFinal = '';
-      let paramsFinal = [];
-
-      if (palabras.length > 1) {
-        const subWheres = palabras.map(() => `(${where})`).join(' AND ');
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 100`;
-        palabras.forEach(p => {
-          campos.forEach(() => paramsFinal.push(`%${p}%`));
-        });
-      } else {
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 100`;
-        paramsFinal = Array(campos.length).fill(`%${q}%`);
-      }
-
-      db.all(sqlFinal, paramsFinal, (errQuery, filas) => {
-        if (errQuery) return res.json([]);
-        res.json(filas || []);
-      });
-    });
+  const sql = `
+    SELECT * FROM personas 
+    WHERE dni LIKE ? OR nombre_completo LIKE ? OR jerarquia_rol LIKE ? OR cargo_chapa LIKE ? OR credencial_token LIKE ?
+    LIMIT 100
+  `;
+  const param = `%${q}%`;
+  db.all(sql, [param, param, param, param, param], (err, filas) => {
+    if (err) return res.json([]);
+    res.json(filas || []);
   });
 });
 
 app.get('/api/vehiculos', (req, res) => {
-  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], async (err, tablas) => {
-    if (err || !tablas || tablas.length === 0) return res.json([]);
-
-    let resultados = [];
-    for (const t of tablas) {
-      if (['libro_guardia', 'configuracion_guardia'].includes(t.name)) continue;
-
-      const filas = await new Promise((resolve) => {
-        db.all(`SELECT * FROM ${t.name}`, [], (e, rows) => resolve(rows || []));
-      });
-
-      filas.forEach(f => {
-        let patenteEncontrada = null;
-        let modeloEncontrado = null;
-        let titular = f.nombre_completo || f.nombre || f.titular || f.apellido || 'Personal Policial';
-        let jerarquia = f.jerarquia_rol || f.jerarquia || f.cargo || '';
-
-        for (const [clave, valor] of Object.entries(f)) {
-          if (!valor || typeof valor !== 'string') continue;
-          const k = clave.toLowerCase();
-          const v = valor.trim();
-
-          if ((k.includes('patente') || k.includes('dominio')) && v !== '' && v !== 'null') {
-            patenteEncontrada = v;
-          }
-          if ((k.includes('modelo') || k.includes('marca') || k.includes('rodado') || k.includes('vehiculo')) && v !== '' && v !== 'null') {
-            modeloEncontrado = v;
-          }
-        }
-
-        if (patenteEncontrada) {
-          resultados.push({
-            id: f.id,
-            titular: titular,
-            jerarquia: jerarquia,
-            modelo: modeloEncontrado || 'Vehículo Registrado',
-            patente: patenteEncontrada.toUpperCase()
-          });
-        }
-      });
-    }
-    res.json(resultados);
+  db.all(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`, [], (err, filas) => {
+    if (err) return res.json([]);
+    res.json(filas || []);
   });
 });
 
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   
-  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
-    const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
-    
+  if (limpiar_credencial) {
+    db.run(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = ?`, [req.params.id], function (e) {
+      if (e) return res.status(500).json({ error: e.message });
+      res.json({ success: true });
+    });
+  } else {
     let updates = [];
     let params = [];
 
-    if (limpiar_credencial) {
-      updates.push("credencial_url = NULL");
-      updates.push("credencial_token = NULL");
-    } else {
-      if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
-      if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
-      if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
-      if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
-      if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
-      if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
-      if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
-      if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
-    }
+    if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
+    if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
+    if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
+    if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
+    if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
+    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
+    if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
+    if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
 
     if (updates.length === 0) return res.json({ success: true });
 
     params.push(req.params.id);
-    const sql = `UPDATE ${tabla} SET ${updates.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE personas SET ${updates.join(', ')} WHERE id = ?`;
     
     db.run(sql, params, function (e) {
       if (e) return res.status(500).json({ error: e.message });
-      res.json({ success: true, changes: this.changes });
+      res.json({ success: true });
     });
-  });
+  }
 });
 
 app.post('/api/personas', (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
-  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
-    const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
-    
-    const sql = `
-      INSERT INTO ${tabla} (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    db.run(sql, [dni || 'S/D', nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente], function (e) {
-      if (e) return res.status(500).json({ error: e.message });
-      res.json({ id: this.lastID, success: true });
-    });
+  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : null;
+
+  const sql = `
+    INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  db.run(sql, [dni || 'S/D', nombre_completo, jerarquia_rol, cargo_chapa, credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
+    if (e) return res.status(500).json({ error: e.message });
+    res.json({ id: this.lastID, success: true });
+  });
+});
+
+app.delete('/api/personas/:id', (req, res) => {
+  db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
+    if (e) return res.status(500).json({ error: e.message });
+    res.json({ success: true });
   });
 });
 
@@ -325,5 +273,5 @@ app.post('/api/configuracion', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Guardia IESP activa en puerto ${PORT}`);
+  console.log(`Servidor activo en puerto ${PORT}`);
 });

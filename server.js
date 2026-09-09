@@ -45,9 +45,22 @@ db.serialize(() => {
       valor TEXT
     )
   `);
+
+  // Asegurar columnas vehiculares si no existen en personas
+  db.all(`PRAGMA table_info(personas)`, [], (err, cols) => {
+    if (!err && cols && cols.length > 0) {
+      const nombres = cols.map(c => c.name);
+      if (!nombres.includes('vehiculo_patente')) {
+        db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`);
+      }
+      if (!nombres.includes('vehiculo_modelo')) {
+        db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`);
+      }
+    }
+  });
 });
 
-// Endpoint proxy oficial: resuelve el token JWT y extrae la foto con Referer
+// Proxy de foto oficial DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -85,12 +98,12 @@ app.get('/api/extraer-foto', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(imagenRes.data);
   } catch (error) {
-    console.error('Error al procesar foto:', error.message);
-    res.status(500).send('Error interno en extracción');
+    console.error('Error al extraer foto:', error.message);
+    res.status(500).send('Error al procesar foto');
   }
 });
 
-// Búsqueda inteligente autoadaptable a cualquier esquema de tablas y columnas
+// Búsqueda inteligente adaptada al esquema
 app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -98,7 +111,6 @@ app.get('/api/buscar', (req, res) => {
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     if (err || !tablas || tablas.length === 0) return res.json([]);
 
-    // Buscar una tabla de personas o utilizar la primera disponible que no sea de logs
     const nombreTabla = tablas.find(t => 
       ['personas', 'personal', 'cadetes', 'fuerza', 'integrantes'].includes(t.name.toLowerCase())
     )?.name || tablas.find(t => t.name !== 'libro_guardia' && t.name !== 'configuracion_guardia')?.name || tablas[0].name;
@@ -111,43 +123,61 @@ app.get('/api/buscar', (req, res) => {
       const params = Array(campos.length).fill(`%${q}%`);
 
       db.all(`SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 15`, params, (errQuery, filas) => {
-        if (errQuery) {
-          console.error('Error consulta SQLite:', errQuery.message);
-          return res.json([]);
-        }
+        if (errQuery) return res.json([]);
         res.json(filas || []);
       });
     });
   });
 });
 
-// Endpoint de diagnóstico para verificar tablas en Render
-app.get('/api/diagnostico', (req, res) => {
-  db.all(`SELECT name FROM sqlite_master WHERE type='table'`, [], (err, tablas) => {
-    res.json({ tablas: tablas ? tablas.map(t => t.name) : [], error: err ? err.message : null });
+// Listado de vehículos registrados en el sistema
+app.get('/api/vehiculos', (req, res) => {
+  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%vehic%'`, [], (err, tablas) => {
+    if (tablas && tablas.length > 0) {
+      const tablaVeh = tablas[0].name;
+      db.all(`SELECT * FROM ${tablaVeh} LIMIT 100`, [], (e, filas) => {
+        if (!e && filas && filas.length > 0) return res.json(filas);
+        buscarEnPersonas();
+      });
+    } else {
+      buscarEnPersonas();
+    }
   });
+
+  function buscarEnPersonas() {
+    const sql = `
+      SELECT id, nombre_completo, jerarquia_rol, cargo_chapa, dni, vehiculo_modelo, vehiculo_patente
+      FROM personas
+      WHERE (vehiculo_patente IS NOT NULL AND vehiculo_patente != '' AND vehiculo_patente != 'null')
+      LIMIT 100
+    `;
+    db.all(sql, [], (err, filas) => {
+      if (err) return res.json([]);
+      res.json(filas || []);
+    });
+  }
 });
 
-// Guardar integrante
-app.post('/api/personas', (req, res) => {
-  const { dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
-  const sql = `
-    INSERT INTO personas (dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-  db.run(sql, [dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, success: true });
-  });
-});
-
-// Modificar vehículo de integrante
+// Guardar o actualizar vehículo de persona
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente } = req.body;
   const sql = `UPDATE personas SET vehiculo_modelo = ?, vehiculo_patente = ? WHERE id = ?`;
   db.run(sql, [vehiculo_modelo, vehiculo_patente, req.params.id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true });
+    res.json({ success: true, changes: this.changes });
+  });
+});
+
+// Alta de persona
+app.post('/api/personas', (req, res) => {
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
+  const sql = `
+    INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+  db.run(sql, [dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, success: true });
   });
 });
 
@@ -169,12 +199,24 @@ app.post('/api/libro-guardia', (req, res) => {
 
   const sql = `
     INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 1, 0)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 0, 0)
   `;
 
   db.run(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL'], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id: this.lastID, success: true, hora });
+  });
+});
+
+// Actualizar estado de envío por WhatsApp
+app.post('/api/libro-guardia/marcar-enviados', (req, res) => {
+  const { ids } = req.body;
+  if (!ids || ids.length === 0) return res.json({ success: true });
+  const placeholders = ids.map(() => '?').join(',');
+  const sql = `UPDATE libro_guardia SET notificado_wa = 1 WHERE id IN (${placeholders})`;
+  db.run(sql, ids, function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, updated: this.changes });
   });
 });
 

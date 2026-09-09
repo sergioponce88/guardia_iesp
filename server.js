@@ -83,7 +83,6 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-// Endpoint general para traer a TODO el personal y cadetes sin límite restrictivo
 app.get('/api/personal-completo', (req, res) => {
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     if (err || !tablas || tablas.length === 0) return res.json([]);
@@ -185,7 +184,7 @@ app.get('/api/vehiculos', (req, res) => {
 });
 
 app.put('/api/personas/:id', (req, res) => {
-  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol } = req.body;
+  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
@@ -193,14 +192,19 @@ app.put('/api/personas/:id', (req, res) => {
     let updates = [];
     let params = [];
 
-    if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
-    if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
-    if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
-    if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
-    if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
-    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
-    if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
-    if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
+    if (limpiar_credencial) {
+      updates.push("credencial_url = NULL");
+      updates.push("credencial_token = NULL");
+    } else {
+      if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
+      if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
+      if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
+      if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
+      if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
+      if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
+      if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
+      if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
+    }
 
     if (updates.length === 0) return res.json({ success: true });
 

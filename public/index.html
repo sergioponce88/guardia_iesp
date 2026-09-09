@@ -112,7 +112,7 @@
             <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
           </button>
 
-          <!-- Búsqueda con Micrófono Optimizado para Celular -->
+          <!-- Búsqueda con Micrófono -->
           <div class="relative flex items-center">
             <input 
               type="text" 
@@ -292,7 +292,7 @@
     </div>
   </div>
 
-  <!-- Modal Listado Fuerza Efectiva Completo con Editar y Eliminar -->
+  <!-- Modal Listado Fuerza Efectiva Completo con Editar, Eliminar y Agregar -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-4xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -301,7 +301,14 @@
         </h3>
         <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
-      <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="w-full border rounded p-2 text-xs outline-none" />
+      
+      <div class="flex gap-2">
+        <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="flex-1 border rounded p-2 text-xs outline-none" />
+        <button onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
+          <i class="fa-solid fa-user-plus mr-1.5"></i> Agregar Nuevo
+        </button>
+      </div>
+
       <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
@@ -309,7 +316,7 @@
               <th class="p-2">Apellido y Nombre</th>
               <th class="p-2">Jerarquía / Rol</th>
               <th class="p-2">N° de Legajo</th>
-              <th class="p-2 text-center">Acciones</th>
+              <th class="p-2 text-center w-40">Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-directorio-body" class="divide-y divide-slate-200"></tbody>
@@ -365,6 +372,47 @@
       <div class="flex justify-end space-x-2 pt-2">
         <button onclick="cerrarModalEditarPersona()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
         <button onclick="guardarEdicionPersona()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded text-xs">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Integrante -->
+  <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center">
+        <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Alta de Integrante
+      </h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[11px] text-slate-500 block">DNI</label>
+          <input type="text" id="nuevo-dni" class="w-full border rounded p-1.5 text-xs" />
+        </div>
+        <div>
+          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
+          <input type="text" id="nuevo-chapa" class="w-full border rounded p-1.5 text-xs" />
+        </div>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
+        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS" />
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
+        <select id="nuevo-jerarquia" class="w-full border rounded p-1.5 text-xs">
+          <option value="Cadete 1° Año">Cadete 1° Año</option>
+          <option value="Cadete 2° Año">Cadete 2° Año</option>
+          <option value="Cadete 3° Año">Cadete 3° Año</option>
+          <option value="Planta Policial">Planta Policial</option>
+          <option value="Visita">Visita</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
+        <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/..." />
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="cerrarModalNuevo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarNuevoIntegrante()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Dar de Alta</button>
       </div>
     </div>
   </div>
@@ -476,7 +524,7 @@
     function iniciarBusquedaPorVoz() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("Su navegador no soporta búsqueda por voz.");
+        alert("La búsqueda por voz no está disponible en este navegador. Intente desde Google Chrome.");
         return;
       }
 
@@ -500,8 +548,11 @@
         inputBuscar.dispatchEvent(new Event('input'));
       };
 
-      recognition.onerror = () => {
-        alert("No se pudo capturar el audio.");
+      recognition.onerror = (event) => {
+        console.warn("Aviso de voz:", event.error);
+        if (event.error !== 'no-speech') {
+          alert("No se pudo capturar el audio. Verifique que el sitio cuente con permisos de micrófono.");
+        }
       };
 
       recognition.onend = () => {
@@ -601,7 +652,7 @@
           const listaEncontrada = await resBusqueda.json();
 
           if (!listaEncontrada || listaEncontrada.length === 0) {
-            alert('No se encontró ningún efectivo con ese apellido.');
+            alert('No se encontró ningún efectivo con ese apellido en la base de datos.');
             return;
           }
 
@@ -908,9 +959,7 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
-    // ==========================================
-    // DIRECTORIO FUERZA EFECTIVA CON EDITAR Y ELIMINAR
-    // ==========================================
+    // DIRECTORIO FUERZA EFECTIVA CON EDITAR, ELIMINAR Y AGREGAR
     async function abrirModalFuerzaEfectiva() {
       try {
         const res = await fetch('/api/personal-completo');
@@ -939,10 +988,10 @@
             <td class="p-2 font-bold text-slate-800">${nom}</td>
             <td class="p-2 text-slate-500">${jer}</td>
             <td class="p-2 font-mono text-blue-600">${chp}</td>
-            <td class="p-2 text-center space-x-1">
-              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow">Seleccionar</button>
-              <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow"><i class="fa-solid fa-pen"></i></button>
-              <button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow"><i class="fa-solid fa-trash"></i></button>
+            <td class="p-2 text-center space-x-1 whitespace-nowrap">
+              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Seleccionar">Sel.</button>
+              <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Editar"><i class="fa-solid fa-pen"></i></button>
+              <button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
         `;
@@ -976,7 +1025,7 @@
       try {
         await fetch(`/api/personas/${id}`, { method: 'DELETE' });
         alert("Efectivo eliminado correctamente.");
-        abrirModalFuerzaEfectiva(); // Refrescar lista
+        abrirModalFuerzaEfectiva();
       } catch (err) {
         console.error(err);
       }
@@ -1153,6 +1202,29 @@
       });
       document.getElementById('txt-oficial-servicio').innerText = val;
       cerrarModalOficial();
+    }
+
+    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
+    function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
+    async function guardarNuevoIntegrante() {
+      const dni = document.getElementById('nuevo-dni').value.trim();
+      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
+      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
+      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
+      const credencial_url = document.getElementById('nuevo-credencial').value.trim();
+
+      if (!nombre_completo) {
+        alert('Ingrese el nombre completo.');
+        return;
+      }
+      await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
+      });
+      cerrarModalNuevo();
+      alert('Integrante dado de alta con éxito.');
+      abrirModalFuerzaEfectiva();
     }
   </script>
 </body>

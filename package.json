@@ -1,7 +1,7 @@
 {
   "name": "guardia-iesp",
   "version": "1.0.0",
-  "description": "Sistema de Control de Guardia IESP",
+  "description": "Sistema de Control de Guardia - IESP Gral. San Martín",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

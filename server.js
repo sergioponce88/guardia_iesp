@@ -11,7 +11,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Asegurar directorio persistente en disco
 const dataDir = path.resolve(__dirname, 'data');
 if (!fs.existsSync(dataDir)){
   fs.mkdirSync(dataDir, { recursive: true });
@@ -66,7 +65,6 @@ db.serialize(() => {
   `);
 });
 
-// Proxy de foto oficial
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -127,7 +125,6 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// ACTUALIZACIÓN DIRECTA Y ABSOLUTA POR ID
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;

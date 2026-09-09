@@ -33,10 +33,10 @@
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
       </button>
-      <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+      <button onclick="alert('Fuerza Efectiva total registrada: 328 efectivos.')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva (328)
       </button>
-      <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+      <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-car mr-1.5"></i> Vehículos
       </button>
     </div>
@@ -102,8 +102,8 @@
             <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
           </div>
 
-          <button onclick="alert('Abriendo lector QR de cámara...')" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 rounded text-xs flex items-center justify-center shadow transition-colors">
-            <i class="fa-solid fa-qrcode mr-2"></i> Escanear QR de Credencial
+          <button onclick="pegarQRManual()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 rounded text-xs flex items-center justify-center shadow transition-colors">
+            <i class="fa-solid fa-qrcode mr-2"></i> Escanear / Validar QR Oficial
           </button>
 
           <button onclick="pegarQRManual()" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 py-1.5 rounded text-xs flex items-center justify-center font-medium transition-colors">
@@ -127,9 +127,8 @@
 
           <!-- Tarjeta del Protagonista Seleccionado -->
           <div id="tarjeta-persona" class="bg-slate-50 border border-slate-200 rounded p-3 relative space-y-3">
-            <button onclick="limpiarSeleccion()" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+            <button onclick="limpiarSeleccion()" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
             <div class="flex items-center space-x-3">
-              <!-- Marco de la foto con proxy integrado -->
               <div class="w-14 h-14 bg-slate-200 rounded-full border border-slate-300 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
                 <img 
                   id="foto-persona" 
@@ -141,7 +140,7 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
                   <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
-                  <button id="btn-editar" onclick="editarPersonaActual()" class="text-[11px] text-slate-500 hover:text-slate-800 flex items-center hidden">
+                  <button id="btn-editar" onclick="abrirModalVehiculo()" class="text-[11px] text-blue-600 hover:underline flex items-center hidden font-semibold">
                     <i class="fa-solid fa-pen mr-1"></i> Editar
                   </button>
                 </div>
@@ -175,21 +174,21 @@
               <div id="seccion-con-vehiculo" class="hidden space-y-1.5">
                 <div class="flex justify-between items-center text-xs">
                   <span class="text-slate-500 text-[10px] uppercase font-bold">VEHÍCULO REGISTRADO:</span>
-                  <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300"></span>
+                  <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300 font-mono"></span>
                 </div>
                 <p id="persona-modelo" class="text-xs font-semibold text-slate-700"></p>
                 <div class="grid grid-cols-2 gap-2 pt-1">
-                  <button onclick="registrarMovimiento('INGRESO', 'Ingreso c/ Móvil')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow">
+                  <button onclick="registrarMovimiento('INGRESO', 'Ingreso c/ Móvil')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
                     <i class="fa-solid fa-car mr-1.5"></i> Ingreso c/ Móvil
                   </button>
-                  <button onclick="registrarMovimiento('EGRESO', 'Egreso c/ Móvil')" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow">
+                  <button onclick="registrarMovimiento('EGRESO', 'Egreso c/ Móvil')" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
                     <i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Egreso c/ Móvil
                   </button>
                 </div>
               </div>
               <div id="seccion-sin-vehiculo" class="text-center py-1">
                 <p class="text-[11px] text-slate-400 italic mb-1.5">Sin vehículo declarado a su nombre</p>
-                <button onclick="abrirModalVehiculo()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 py-1 rounded text-xs font-semibold transition-colors">
+                <button onclick="abrirModalVehiculo()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 py-1.5 rounded text-xs font-semibold transition-colors">
                   <i class="fa-solid fa-plus mr-1"></i> Declarar / Registrar Vehículo Ahora
                 </button>
               </div>
@@ -199,10 +198,10 @@
             <div class="space-y-1.5 pt-2 border-t border-slate-200">
               <span class="text-[10px] uppercase font-bold text-slate-500 block">O PASE PEATONAL (A PIE):</span>
               <div class="grid grid-cols-2 gap-2">
-                <button onclick="registrarMovimiento('INGRESO', 'A pie')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow">
+                <button onclick="registrarMovimiento('INGRESO', 'A pie')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
                   <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Ingreso a Pie
                 </button>
-                <button onclick="registrarMovimiento('EGRESO', 'A pie')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow">
+                <button onclick="registrarMovimiento('EGRESO', 'A pie')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
                   <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Egreso a Pie
                 </button>
               </div>
@@ -222,8 +221,8 @@
               <p class="text-[11px] text-slate-400">Orden cronológico minuto a minuto</p>
             </div>
             <div class="flex items-center space-x-2">
-              <input type="date" id="filtro-fecha" onchange="cargarLibro()" class="border border-slate-300 rounded px-2 py-1 text-xs">
-              <button class="bg-slate-800 text-white text-xs px-2.5 py-1 rounded flex items-center shadow">
+              <input type="date" id="filtro-fecha" onchange="cargarLibro()" class="border border-slate-300 rounded px-2 py-1 text-xs outline-none">
+              <button onclick="cargarLibro()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-2.5 py-1 rounded flex items-center shadow transition-colors">
                 <i class="fa-solid fa-clock mr-1"></i> Todo el Día
               </button>
               <button onclick="enviarSeleccionadosWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 rounded font-semibold flex items-center shadow transition-colors">
@@ -249,8 +248,8 @@
             </table>
           </div>
           <div class="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>Puesto activo: Puesto 1</span>
-            <span>Asientos válidos hoy: <span id="total-asientos" class="font-bold text-slate-700">0</span></span>
+            <span>Puesto activo: Puesto 1 (Principal)</span>
+            <span>Asientos registrados: <span id="total-asientos" class="font-bold text-slate-700">0</span></span>
           </div>
         </div>
       </div>
@@ -268,7 +267,7 @@
       </h3>
       <div>
         <label class="text-xs text-slate-500 block mb-1">Nombre, Apellido y Grado Oficial</label>
-        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO">
+        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs outline-none focus:ring-1 focus:ring-amber-500" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO">
       </div>
       <div class="flex justify-end space-x-2">
         <button onclick="cerrarModalOficial()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
@@ -277,7 +276,7 @@
     </div>
   </div>
 
-  <!-- Modal Nuevo Personal/Cadete -->
+  <!-- Modal Nuevo Integrante -->
   <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
@@ -295,7 +294,7 @@
       </div>
       <div>
         <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs">
+        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS">
       </div>
       <div>
         <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
@@ -308,7 +307,7 @@
         </select>
       </div>
       <div>
-        <label class="text-[11px] text-slate-500 block">Enlace de Credencial Oficial (Opcional)</label>
+        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
         <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/...">
       </div>
       <div class="flex justify-end space-x-2 pt-2">
@@ -318,7 +317,7 @@
     </div>
   </div>
 
-  <!-- Modal Declarar Vehículo -->
+  <!-- Modal Declarar / Asignar Vehículo -->
   <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
@@ -326,21 +325,50 @@
       </h3>
       <div>
         <label class="text-[11px] text-slate-500 block">Modelo / Marca</label>
-        <input type="text" id="vehiculo-modelo-input" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: Renault Fluence / Honda Wave">
+        <input type="text" id="vehiculo-modelo-input" class="w-full border border-slate-300 rounded p-1.5 text-xs outline-none" placeholder="Ej: Renault Fluence / Honda Wave">
       </div>
       <div>
         <label class="text-[11px] text-slate-500 block">Dominio / Patente</label>
-        <input type="text" id="vehiculo-patente-input" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: AA 112 FB">
+        <input type="text" id="vehiculo-patente-input" class="w-full border border-slate-300 rounded p-1.5 text-xs uppercase font-mono outline-none" placeholder="Ej: AA 112 FB">
       </div>
       <div class="flex justify-end space-x-2 pt-2">
         <button onclick="cerrarModalVehiculo()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
-        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs">Asignar</button>
+        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs">Asignar y Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Listado General de Vehículos -->
+  <div id="modal-lista-vehiculos" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-3 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-car-side text-emerald-600 mr-2"></i> Parque Vehicular Registrado
+        </h3>
+        <button onclick="cerrarModalListaVehiculos()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+      </div>
+      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Titular</th>
+              <th class="p-2">Jerarquía</th>
+              <th class="p-2">Modelo / Marca</th>
+              <th class="p-2">Patente</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-vehiculos-body" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="cerrarModalListaVehiculos()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs">Cerrar</button>
       </div>
     </div>
   </div>
 
   <script>
     let personaSeleccionada = null;
+    let registrosCargados = [];
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -379,7 +407,6 @@
         return;
       }
       lista.forEach(p => {
-        // Mapeo exacto de las columnas de tu base de datos
         const nom = p.nombre_completo || p.nombre || 'Sin Nombre';
         const jer = p.jerarquia_rol || p.jerarquia || '';
         const chp = p.cargo_chapa || p.chapa || '';
@@ -410,7 +437,6 @@
       document.getElementById('persona-det').innerText = `DNI: ${doc} | Chapa: ${chp}`;
       document.getElementById('btn-editar').classList.remove('hidden');
 
-      // Si credencial_url es null, se arma con credencial_token
       let enlace = p.credencial_url;
       if (!enlace && p.credencial_token) {
         enlace = `https://credenciales.dpd1.ar/publicoQR/${p.credencial_token}`;
@@ -428,7 +454,6 @@
         const tokenDisplay = p.credencial_token || enlace.trim().split('/').pop().replace('#', '');
         hashSpan.innerText = '#' + tokenDisplay.slice(0, 8);
 
-        // Extracción mediante el proxy en server.js
         imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
         imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
       } else {
@@ -437,14 +462,14 @@
         imgFoto.src = placeholderSvg;
       }
 
-      const pat = p.vehiculo_patente || p.patente || '';
-      const mod = p.vehiculo_modelo || p.modelo || '';
+      const pat = p.vehiculo_patente || p.patente || p.dominio || '';
+      const mod = p.vehiculo_modelo || p.modelo || p.marca || '';
 
-      if (pat.trim() !== '') {
+      if (pat && pat.trim() !== '' && pat !== 'null' && pat !== 'undefined') {
         document.getElementById('seccion-con-vehiculo').classList.remove('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-        document.getElementById('persona-patente').innerText = pat;
-        document.getElementById('persona-modelo').innerText = mod || 'Vehículo Personal';
+        document.getElementById('persona-patente').innerText = pat.toUpperCase();
+        document.getElementById('persona-modelo').innerText = mod || 'Vehículo Registrado';
       } else {
         document.getElementById('seccion-con-vehiculo').classList.add('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.remove('hidden');
@@ -491,30 +516,30 @@
       try {
         const res = await fetch(`/api/libro-guardia?fecha=${fecha}`);
         const datos = await res.json();
+        registrosCargados = Array.isArray(datos) ? datos : [];
         const tbody = document.getElementById('tabla-guardia');
         tbody.innerHTML = '';
-        if (Array.isArray(datos)) {
-          document.getElementById('total-asientos').innerText = datos.length;
-          datos.forEach(row => {
-            const esIngreso = row.accion.includes('INGRESO');
-            const badgeClass = esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
-            tbody.innerHTML += `
-              <tr class="hover:bg-slate-50 transition-colors">
-                <td class="p-2 text-center"><input type="checkbox" class="chk-fila" value="${row.id}"></td>
-                <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
-                <td class="p-2 text-slate-600">${row.puesto}</td>
-                <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
-                <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
-                <td class="p-2 text-slate-500">${row.detalle}</td>
-                <td class="p-2 text-center">
-                  <span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center">
-                    <i class="fa-solid fa-check mr-1"></i> Enviado
-                  </span>
-                </td>
-              </tr>
-            `;
-          });
-        }
+        document.getElementById('total-asientos').innerText = registrosCargados.length;
+
+        registrosCargados.forEach(row => {
+          const esIngreso = row.accion && row.accion.includes('INGRESO');
+          const badgeClass = esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+          const badgeWa = row.notificado_wa === 1 
+            ? '<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i> Enviado</span>'
+            : '<span class="bg-slate-100 text-slate-500 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-clock mr-1"></i> Pendiente</span>';
+
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="p-2 text-center"><input type="checkbox" class="chk-fila" value="${row.id}"></td>
+              <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
+              <td class="p-2 text-slate-600">${row.puesto}</td>
+              <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
+              <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
+              <td class="p-2 text-slate-500">${row.detalle}</td>
+              <td class="p-2 text-center">${badgeWa}</td>
+            </tr>
+          `;
+        });
       } catch (err) {
         console.error(err);
       }
@@ -531,11 +556,11 @@
 
       const nom = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
       const jer = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      const pat = personaSeleccionada.vehiculo_patente || personaSeleccionada.patente || 'S/D';
+      const pat = personaSeleccionada.vehiculo_patente || personaSeleccionada.patente || '';
 
       if (modo.includes('Móvil')) {
         accion = `VEHÍCULO (${tipo})`;
-        detalle = `${tipo} al mando de titular [Patente: ${pat}]`;
+        detalle = `${tipo} c/ rodado [Patente: ${pat.toUpperCase() || 'S/D'}]`;
       }
 
       const payload = {
@@ -590,17 +615,48 @@
       document.querySelectorAll('.chk-fila').forEach(cb => cb.checked = master.checked);
     }
 
-    function enviarSeleccionadosWhatsApp() {
-      const seleccionados = Array.from(document.querySelectorAll('.chk-fila:checked'));
-      if (seleccionados.length === 0) {
-        alert('Seleccione al menos un movimiento del libro para enviar.');
+    async function enviarSeleccionadosWhatsApp() {
+      const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
+      if (checkboxes.length === 0) {
+        alert('Seleccione al menos un movimiento con el casillero izquierdo para enviar.');
         return;
       }
-      alert(`Preparando reporte de ${seleccionados.length} novedades para transmisión por WhatsApp.`);
+
+      const idsSeleccionados = checkboxes.map(cb => parseInt(cb.value));
+      const filasAEnviar = registrosCargados.filter(r => idsSeleccionados.includes(r.id));
+
+      if (filasAEnviar.length === 0) return;
+
+      const fecha = document.getElementById('filtro-fecha').value;
+      const oficial = document.getElementById('txt-oficial-servicio').innerText;
+
+      let mensaje = `*PARTE DIARIO DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
+      mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial}\n\n`;
+
+      filasAEnviar.forEach((m, idx) => {
+        mensaje += `${idx + 1}. [${m.hora}] *${m.accion}* - ${m.protagonista}\n`;
+        mensaje += `   _${m.detalle}_ (Puesto: ${m.puesto})\n\n`;
+      });
+
+      // Marcar en backend como notificados
+      await fetch('/api/libro-guardia/marcar-enviados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsSeleccionados })
+      });
+
+      cargarLibro();
+
+      // Abrir WhatsApp Web con el texto formateado
+      const urlWhatsapp = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+      window.open(urlWhatsapp, '_blank');
     }
 
-    // Funciones de Modales
-    function abrirModalOficial() { document.getElementById('modal-oficial').classList.remove('hidden'); }
+    // Modal Oficial de Servicio
+    function abrirModalOficial() {
+      document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
+      document.getElementById('modal-oficial').classList.remove('hidden');
+    }
     function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
     async function guardarOficialServicio() {
       const val = document.getElementById('input-oficial-nombre').value.trim();
@@ -614,35 +670,43 @@
       cerrarModalOficial();
     }
 
+    // Modal Nuevo Integrante
     function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
     function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
     async function guardarNuevoIntegrante() {
       const dni = document.getElementById('nuevo-dni').value.trim();
-      const nombre = document.getElementById('nuevo-nombre').value.trim();
-      const jerarquia = document.getElementById('nuevo-jerarquia').value;
-      const chapa = document.getElementById('nuevo-chapa').value.trim();
+      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
+      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
+      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
       const credencial_url = document.getElementById('nuevo-credencial').value.trim();
 
-      if (!dni || !nombre) {
-        alert('Complete DNI y Nombre.');
+      if (!nombre_completo) {
+        alert('Ingrese el nombre completo.');
         return;
       }
       await fetch('/api/personas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, nombre, jerarquia, chapa, credencial_url })
+        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
       });
       cerrarModalNuevo();
       alert('Integrante dado de alta con éxito.');
     }
 
-    function abrirModalVehiculo() { document.getElementById('modal-vehiculo').classList.remove('hidden'); }
-    function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
-    async function guardarVehiculoPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Seleccione una persona primero.');
+    // Modal Asignar Vehículo
+    function abrirModalVehiculo() {
+      if (!personaSeleccionada) {
+        alert('Debe buscar y seleccionar a una persona primero.');
         return;
       }
+      document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.vehiculo_modelo || '';
+      document.getElementById('vehiculo-patente-input').value = personaSeleccionada.vehiculo_patente || '';
+      document.getElementById('modal-vehiculo').classList.remove('hidden');
+    }
+    function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
+    async function guardarVehiculoPersona() {
+      if (!personaSeleccionada || !personaSeleccionada.id) return;
+
       const modelo = document.getElementById('vehiculo-modelo-input').value.trim();
       const patente = document.getElementById('vehiculo-patente-input').value.trim().toUpperCase();
 
@@ -651,11 +715,46 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
       });
+
       personaSeleccionada.vehiculo_modelo = modelo;
       personaSeleccionada.vehiculo_patente = patente;
       seleccionarPersona(personaSeleccionada);
       cerrarModalVehiculo();
     }
+
+    // Modal Ver Parque Vehicular
+    async function abrirModalListaVehiculos() {
+      try {
+        const res = await fetch('/api/vehiculos');
+        const lista = await res.json();
+        const tbody = document.getElementById('tabla-vehiculos-body');
+        tbody.innerHTML = '';
+
+        if (!lista || lista.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No hay vehículos registrados en la base.</td></tr>';
+        } else {
+          lista.forEach(v => {
+            const nom = v.nombre_completo || v.nombre || 'S/D';
+            const jer = v.jerarquia_rol || v.jerarquia || '';
+            const mod = v.vehiculo_modelo || v.modelo || 'No especificado';
+            const pat = (v.vehiculo_patente || v.patente || '').toUpperCase();
+
+            tbody.innerHTML += `
+              <tr class="hover:bg-slate-50">
+                <td class="p-2 font-bold text-slate-800">${nom}</td>
+                <td class="p-2 text-slate-500">${jer}</td>
+                <td class="p-2 text-slate-700">${mod}</td>
+                <td class="p-2 font-mono font-bold text-blue-600">${pat}</td>
+              </tr>
+            `;
+          });
+        }
+        document.getElementById('modal-lista-vehiculos').classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    function cerrarModalListaVehiculos() { document.getElementById('modal-lista-vehiculos').classList.add('hidden'); }
   </script>
 </body>
 </html>

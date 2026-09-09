@@ -10,7 +10,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Base de datos persistente en la raíz del proyecto
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -100,7 +99,6 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-// Obtener todo el personal ordenado por ID descendiente para ver los nuevos arriba
 app.get('/api/personal-completo', (req, res) => {
   db.all(`SELECT * FROM personas ORDER BY id DESC`, [], (e, filas) => {
     if (e) return res.json([]);
@@ -108,7 +106,6 @@ app.get('/api/personal-completo', (req, res) => {
   });
 });
 
-// Búsqueda en la tabla personas
 app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -125,7 +122,6 @@ app.get('/api/buscar', (req, res) => {
   });
 });
 
-// Listado de vehículos registrados
 app.get('/api/vehiculos', (req, res) => {
   db.all(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`, [], (err, filas) => {
     if (err) return res.json([]);
@@ -133,41 +129,52 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// Actualizar persona por ID
+// ACTUALIZAR PERSONA / DATOS / QR (Garantizado)
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
-  
+  const idPersona = req.params.id;
+
   if (limpiar_credencial) {
-    db.run(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = ?`, [req.params.id], function (e) {
+    db.run(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = ?`, [idPersona], function (e) {
       if (e) return res.status(500).json({ error: e.message });
       res.json({ success: true });
     });
   } else {
-    let updates = [];
-    let params = [];
+    // Si viene una nueva URL de credencial, extraemos automáticamente el token/hash
+    let tokenCalculado = credencial_token;
+    if (credencial_url && !tokenCalculado) {
+      tokenCalculado = credencial_url.trim().split('/').pop().replace('#', '');
+    }
 
-    if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
-    if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
-    if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
-    if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
-    if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
-    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
-    if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
-    if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
+    db.get(`SELECT * FROM personas WHERE id = ?`, [idPersona], (err, actual) => {
+      if (err || !actual) return res.status(404).json({ error: 'Persona no encontrada' });
 
-    if (updates.length === 0) return res.json({ success: true });
+      const nuevoDni = dni !== undefined ? dni : actual.dni;
+      const nuevoNombre = nombre_completo !== undefined ? nombre_completo.toUpperCase() : actual.nombre_completo;
+      const nuevaJerarquia = jerarquia_rol !== undefined ? jerarquia_rol : actual.jerarquia_rol;
+      const nuevoChapa = cargo_chapa !== undefined ? cargo_chapa : actual.cargo_chapa;
+      const nuevaCredUrl = credencial_url !== undefined ? credencial_url : actual.credencial_url;
+      const nuevoToken = tokenCalculado !== undefined ? tokenCalculado : actual.credencial_token;
+      const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+      const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
 
-    params.push(req.params.id);
-    const sql = `UPDATE personas SET ${updates.join(', ')} WHERE id = ?`;
-    
-    db.run(sql, params, function (e) {
-      if (e) return res.status(500).json({ error: e.message });
-      res.json({ success: true });
+      const sql = `
+        UPDATE personas 
+        SET dni = ?, nombre_completo = ?, jerarquia_rol = ?, cargo_chapa = ?, credencial_url = ?, credencial_token = ?, vehiculo_modelo = ?, vehiculo_patente = ?
+        WHERE id = ?
+      `;
+
+      db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona], function (e) {
+        if (e) {
+          console.error("Error al actualizar:", e.message);
+          return res.status(500).json({ error: e.message });
+        }
+        res.json({ success: true });
+      });
     });
   }
 });
 
-// ALTA DE NUEVO EFECTIVO (Guardado garantizado)
 app.post('/api/personas', (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
@@ -181,17 +188,12 @@ app.post('/api/personas', (req, res) => {
     INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  
   db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
-    if (e) {
-      console.error("Error al insertar persona:", e.message);
-      return res.status(500).json({ error: e.message });
-    }
+    if (e) return res.status(500).json({ error: e.message });
     res.json({ id: this.lastID, success: true });
   });
 });
 
-// Eliminar persona por ID
 app.delete('/api/personas/:id', (req, res) => {
   db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
     if (e) return res.status(500).json({ error: e.message });
@@ -199,7 +201,6 @@ app.delete('/api/personas/:id', (req, res) => {
   });
 });
 
-// Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;

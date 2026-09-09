@@ -14,20 +14,12 @@
 </head>
 <body class="bg-slate-100 text-slate-800 text-sm">
 
-  <!-- Header Superior -->
+  <!-- Header Superior (Sin selector de puesto) -->
   <header class="bg-slate-900 text-white px-4 py-2 flex flex-wrap items-center justify-between border-b border-slate-700 shadow">
     <div class="flex items-center space-x-3">
       <div>
         <h1 class="font-bold text-base leading-tight tracking-wide">I.E.S.P. "Gral. San Martín"</h1>
         <p class="text-xs text-slate-400">Control de Guardia</p>
-      </div>
-      <div class="flex items-center bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs">
-        <span class="text-amber-400 mr-1.5">📍</span>
-        <select id="sel-puesto" class="bg-transparent text-white outline-none cursor-pointer">
-          <option value="Puesto 1 (Principal)" class="bg-slate-800">Puesto 1 (Principal)</option>
-          <option value="Puesto 2" class="bg-slate-800">Puesto 2</option>
-          <option value="Puesto 3" class="bg-slate-800">Puesto 3</option>
-        </select>
       </div>
     </div>
     <div class="flex items-center space-x-2 mt-2 sm:mt-0">
@@ -143,7 +135,6 @@
                 <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
                 <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
                 <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
-                <!-- Botón de Edición Personal -->
                 <div class="flex space-x-2 mt-1">
                   <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold">
                     <i class="fa-solid fa-user-pen"></i> Editar Datos
@@ -156,28 +147,45 @@
               <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span> FUERA DEL INSTITUTO
             </div>
 
-            <!-- Credencial Oficial -->
-            <div class="space-y-1">
+            <!-- Credencial Oficial y Botón de Confirmación/Guardado -->
+            <div class="space-y-1 bg-white p-2 rounded border border-slate-200">
               <div class="flex justify-between items-center text-[11px]">
-                <span class="text-slate-600 font-semibold flex items-center"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial</span>
-                <div class="space-x-1">
-                  <button onclick="abrirModalCredencial()" class="text-[10px] text-blue-600 hover:underline font-semibold" title="Asociar o Cambiar Credencial QR">
-                    <i class="fa-solid fa-link"></i> <span id="txt-btn-cred">Asociar QR</span>
-                  </button>
-                  <button id="btn-desvincular-qr" onclick="desvincularQrPersona()" class="text-[10px] text-rose-600 hover:underline font-semibold hidden" title="Desvincular QR actual">
-                    <i class="fa-solid fa-unlink"></i> Desvincular
-                  </button>
-                </div>
+                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial QR</span>
+                <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">Sin Enlace</span>
               </div>
-              <span id="persona-hash" class="text-blue-600 font-mono text-[10px] block">Sin Enlace</span>
+              <div class="flex space-x-1 pt-1">
+                <button onclick="abrirModalCredencial()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold py-1 rounded transition-colors">
+                  <i class="fa-solid fa-link mr-1"></i> Asociar QR
+                </button>
+                <button id="btn-desvincular-qr" onclick="desvincularQrPersona()" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-semibold px-2 py-1 rounded transition-colors" title="Desvincular">
+                  <i class="fa-solid fa-unlink"></i>
+                </button>
+              </div>
+              <!-- BOTÓN EXPLÍCITO SOLICITADO PARA GUARDAR Y CONFIRMAR VINCULACIÓN -->
+              <button id="btn-confirmar-qr" onclick="confirmarYGuardarVinculacion()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs mt-1 shadow-sm transition-colors">
+                <i class="fa-solid fa-check-circle mr-1"></i> Confirmar y Guardar Vinculación
+              </button>
               <a 
                 id="btn-credencial" 
                 href="#" 
                 target="_blank" 
-                class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs block text-center shadow-sm transition-colors"
+                class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 rounded text-[11px] block text-center shadow-sm transition-colors mt-1"
               >
-                Abrir Validación Oficial en Línea
+                Abrir Validación Oficial
               </a>
+            </div>
+
+            <!-- Selector de Puesto Reubicado a continuación del bloque QR -->
+            <div class="pt-2 border-t border-slate-200 space-y-1">
+              <label class="text-[10px] uppercase font-bold text-slate-500 block">PUESTO DE CONTROL ACTIVO:</label>
+              <div class="flex items-center bg-white border border-slate-300 rounded px-2 py-1 text-xs">
+                <span class="text-amber-500 mr-2">📍</span>
+                <select id="sel-puesto" class="bg-transparent text-slate-800 font-semibold w-full outline-none cursor-pointer">
+                  <option value="Puesto 1 (Principal)">Puesto 1 (Principal)</option>
+                  <option value="Puesto 2">Puesto 2</option>
+                  <option value="Puesto 3">Puesto 3</option>
+                </select>
+              </div>
             </div>
 
             <!-- Submódulo Vehicular -->
@@ -262,7 +270,7 @@
             </table>
           </div>
           <div class="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>Puesto activo: Puesto 1 (Principal)</span>
+            <span>Registro activo</span>
             <span>Asientos registrados: <span id="total-asientos" class="font-bold text-slate-700">0</span></span>
           </div>
         </div>
@@ -489,6 +497,7 @@
     let directorioGlobal = [];
     let streamVideo = null;
     let scanInterval = null;
+    let qrEscaneadoTemporal = null; // Variable para almacenar temporalmente el QR leído por cámara
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -518,15 +527,12 @@
       cargarOficialServicio();
     }
 
-    // ==========================================
-    // BÚSQUEDA RÁPIDA POR DICTADO LIMPIO
-    // ==========================================
     function iniciarBusquedaPorVoz() {
-      const valorDictado = prompt("Dictar o escribir el nombre, apellido o DNI a buscar:");
-      if (!valorDictado) return;
+      const textoDictado = prompt("Escriba o dicte el apellido, DNI o N° de Legajo a buscar:");
+      if (!textoDictado) return;
 
       const inputBuscar = document.getElementById('input-buscar');
-      inputBuscar.value = valorDictado;
+      inputBuscar.value = textoDictado;
       inputBuscar.dispatchEvent(new Event('input'));
     }
 
@@ -611,13 +617,16 @@
         if (datos && datos.length > 0) {
           seleccionarPersona(datos[0]);
         } else {
-          const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asignarlo:");
+          // Guardamos temporalmente el QR escaneado y pedimos buscar al efectivo
+          qrEscaneadoTemporal = enlace;
+          const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asociarlo:");
           if (!apellidoBusqueda) return;
 
           const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}`);
           const listaEncontrada = await resBusqueda.json();
 
           if (!listaEncontrada || listaEncontrada.length === 0) {
+            alert('No se encontró ningún efectivo con ese nombre.');
             return;
           }
 
@@ -631,21 +640,50 @@
             }
           }
 
-          await fetch(`/api/personas/${personaElegida.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              credencial_url: enlace,
-              credencial_token: hash
-            })
-          });
-
-          personaElegida.credencial_url = enlace;
-          personaElegida.credencial_token = hash;
           seleccionarPersona(personaElegida);
+          // Habilitamos el botón explícito para confirmar la vinculación
+          document.getElementById('btn-confirmar-qr').classList.remove('hidden');
         }
       } catch (err) {
-        console.error(err);
+        console.error("Error al procesar lectura QR:", err);
+      }
+    }
+
+    // FUNCIÓN DEL BOTÓN EXPLÍCITO PARA GUARDAR Y CONFIRMAR VINCULACIÓN
+    async function confirmarYGuardarVinculacion() {
+      if (!personaSeleccionada || !personaSeleccionada.id) {
+        alert('Seleccione un efectivo primero.');
+        return;
+      }
+      const enlaceA_Guardar = qrEscaneadoTemporal || personaSeleccionada.credencial_url;
+      if (!enlaceA_Guardar) {
+        alert('No hay ningún código QR pendiente para guardar.');
+        return;
+      }
+
+      const hash = enlaceA_Guardar.trim().split('/').pop().replace('#', '');
+
+      try {
+        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            credencial_url: enlaceA_Guardar,
+            credencial_token: hash
+          })
+        });
+
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+          personaSeleccionada.credencial_url = enlaceA_Guardar;
+          personaSeleccionada.credencial_token = hash;
+          qrEscaneadoTemporal = null;
+          seleccionarPersona(personaSeleccionada);
+          document.getElementById('btn-confirmar-qr').classList.add('hidden');
+          alert('¡Credencial QR confirmada y guardada exitosamente en la base de datos!');
+        }
+      } catch (err) {
+        console.error("Error al confirmar QR:", err);
       }
     }
 
@@ -726,6 +764,10 @@
         imgFoto.src = placeholderSvg;
       }
 
+      if (qrEscaneadoTemporal && p.id) {
+        document.getElementById('btn-confirmar-qr').classList.remove('hidden');
+      }
+
       let patente = null;
       let modelo = null;
 
@@ -758,6 +800,7 @@
 
     function limpiarSeleccion() {
       personaSeleccionada = null;
+      qrEscaneadoTemporal = null;
       document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
       document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
       document.getElementById('persona-det').innerText = 'DNI / N° de Legajo';
@@ -765,6 +808,7 @@
       document.getElementById('btn-credencial').classList.add('hidden');
       document.getElementById('btn-desvincular-qr').classList.add('hidden');
       document.getElementById('btn-editar-persona').classList.add('hidden');
+      document.getElementById('btn-confirmar-qr').classList.add('hidden');
       document.getElementById('persona-hash').innerText = 'Sin Enlace';
       document.getElementById('seccion-con-vehiculo').classList.add('hidden');
       document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
@@ -774,15 +818,23 @@
       if (!personaSeleccionada || !personaSeleccionada.id) return;
       if (!confirm("¿Está seguro que desea desvincular este código QR?")) return;
 
-      await fetch(`/api/personas/${personaSeleccionada.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limpiar_credencial: true })
-      });
+      try {
+        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limpiar_credencial: true })
+        });
 
-      personaSeleccionada.credencial_url = null;
-      personaSeleccionada.credencial_token = null;
-      seleccionarPersona(personaSeleccionada);
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+          personaSeleccionada.credencial_url = null;
+          personaSeleccionada.credencial_token = null;
+          seleccionarPersona(personaSeleccionada);
+          alert('QR desvinculado correctamente.');
+        }
+      } catch (err) {
+        console.error("Error al desvincular QR:", err);
+      }
     }
 
     async function cargarLibro() {
@@ -821,6 +873,7 @@
 
     async function registrarMovimiento(tipo, modo) {
       if (!personaSeleccionada) {
+        alert('Seleccione una persona primero.');
         return;
       }
       const puesto = document.getElementById('sel-puesto').value;
@@ -891,6 +944,7 @@
     async function enviarSeleccionadosWhatsApp() {
       const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
       if (checkboxes.length === 0) {
+        alert('Seleccione las filas a enviar.');
         return;
       }
 
@@ -901,9 +955,10 @@
 
       const fecha = document.getElementById('filtro-fecha').value;
       const oficial = document.getElementById('txt-oficial-servicio').innerText;
+      const puestoActivo = document.getElementById('sel-puesto').value;
 
       let mensaje = `*PARTE DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
-      mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial}\n\n`;
+      mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial} | *Puesto:* ${puestoActivo}\n\n`;
 
       filasAEnviar.forEach((m, idx) => {
         mensaje += `${idx + 1}. [${m.hora}] *${m.accion}* - ${m.protagonista}\n`;
@@ -995,6 +1050,7 @@
 
     function abrirModalCredencial() {
       if (!personaSeleccionada) {
+        alert('Seleccione una persona primero.');
         return;
       }
       document.getElementById('input-credencial-url').value = personaSeleccionada.credencial_url || '';
@@ -1007,6 +1063,7 @@
 
     async function guardarCredencialPersona() {
       if (!personaSeleccionada || !personaSeleccionada.id) {
+        alert('Debe buscar y seleccionar a un efectivo registrado primero.');
         return;
       }
 
@@ -1019,19 +1076,27 @@
 
       const hash = val.trim().split('/').pop().replace('#', '');
 
-      await fetch(`/api/personas/${personaSeleccionada.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credencial_url: val,
-          credencial_token: hash
-        })
-      });
+      try {
+        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            credencial_url: val,
+            credencial_token: hash
+          })
+        });
 
-      personaSeleccionada.credencial_url = val;
-      personaSeleccionada.credencial_token = hash;
-      seleccionarPersona(personaSeleccionada);
-      cerrarModalCredencial();
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+          personaSeleccionada.credencial_url = val;
+          personaSeleccionada.credencial_token = hash;
+          seleccionarPersona(personaSeleccionada);
+          cerrarModalCredencial();
+          alert('¡Credencial vinculada y guardada correctamente!');
+        }
+      } catch (err) {
+        console.error("Error al guardar credencial:", err);
+      }
     }
 
     function abrirModalEditarPersona() {
@@ -1046,6 +1111,7 @@
 
     async function guardarEdicionPersona() {
       if (!personaSeleccionada || !personaSeleccionada.id) {
+        alert('Seleccione un efectivo primero.');
         return;
       }
       const dni = document.getElementById('edit-dni').value.trim();
@@ -1053,23 +1119,32 @@
       const nombre_completo = document.getElementById('edit-nombre').value.trim();
       const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
 
-      await fetch(`/api/personas/${personaSeleccionada.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
-      });
+      try {
+        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
+        });
 
-      personaSeleccionada.dni = dni;
-      personaSeleccionada.cargo_chapa = cargo_chapa;
-      personaSeleccionada.nombre_completo = nombre_completo;
-      personaSeleccionada.jerarquia_rol = jerarquia_rol;
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+          personaSeleccionada.dni = dni;
+          personaSeleccionada.cargo_chapa = cargo_chapa;
+          personaSeleccionada.nombre_completo = nombre_completo;
+          personaSeleccionada.jerarquia_rol = jerarquia_rol;
 
-      seleccionarPersona(personaSeleccionada);
-      cerrarModalEditarPersona();
+          seleccionarPersona(personaSeleccionada);
+          cerrarModalEditarPersona();
+          alert('Datos personales actualizados y guardados con éxito.');
+        }
+      } catch (err) {
+        console.error("Error al guardar edición:", err);
+      }
     }
 
     function abrirModalVehiculo() {
       if (!personaSeleccionada) {
+        alert('Seleccione una persona primero.');
         return;
       }
       document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.modelo_detectado || '';
@@ -1110,6 +1185,7 @@
       personaSeleccionada.modelo_detectado = modelo;
       seleccionarPersona(personaSeleccionada);
       cerrarModalVehiculo();
+      alert('Vehículo guardado correctamente.');
     }
 
     async function abrirModalListaVehiculos() {
@@ -1167,15 +1243,20 @@
       const credencial_url = document.getElementById('nuevo-credencial').value.trim();
 
       if (!nombre_completo) {
+        alert('Ingrese el nombre completo.');
         return;
       }
-      await fetch('/api/personas', {
+      const respuesta = await fetch('/api/personas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
       });
-      cerrarModalNuevo();
-      abrirModalFuerzaEfectiva();
+      const resultado = await respuesta.json();
+      if (resultado.success) {
+        cerrarModalNuevo();
+        alert('Integrante dado de alta con éxito.');
+        abrirModalFuerzaEfectiva();
+      }
     }
   </script>
 </body>

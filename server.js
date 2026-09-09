@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const axios = require('axios');
-const cheerio = require('cheerio');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,17 +10,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Base de datos SQLite local
+// Conexión SQLite
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error al conectar con guardia_iesp.db:', err.message);
   } else {
-    console.log('Conectado exitosamente a guardia_iesp.db');
+    console.log('Conectado a guardia_iesp.db');
   }
 });
 
-// Endpoint proxy para extraer la foto oficial desde credenciales.dpd1.ar
+// Endpoint extractor de foto oficial vía proxy DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -38,15 +37,14 @@ app.get('/api/extraer-foto', async (req, res) => {
       timeout: 8000
     });
 
-    // Localizar el token JWT de la imagen dentro del HTML o scripts
     const match = respuestaHtml.data.match(/\/api\/imagen\/[a-zA-Z0-9_\-\.]+/);
     if (!match) {
-      return res.status(404).send('Token de imagen no encontrado');
+      return res.status(404).send('Token de imagen no localizado');
     }
 
     const imagenUrl = `https://credenciales.dpd1.ar${match[0]}`;
 
-    // Descarga de la imagen enviando el Referer obligatorio para evitar el error de lectura
+    // Descarga con cabecera Referer obligatoria
     const imagenRes = await axios.get(imagenUrl, {
       responseType: 'arraybuffer',
       headers: {
@@ -62,8 +60,8 @@ app.get('/api/extraer-foto', async (req, res) => {
     res.send(imagenRes.data);
 
   } catch (error) {
-    console.error('Error al obtener foto oficial:', error.message);
-    res.status(500).send('Error interno al procesar la foto');
+    console.error('Error al extraer foto:', error.message);
+    res.status(500).send('Error al obtener la imagen');
   }
 });
 
@@ -80,22 +78,23 @@ app.get('/api/buscar', (req, res) => {
   db.all(sql, [parametro, parametro, parametro, parametro], (err, filas) => {
     if (err) {
       console.error('Error en /api/buscar:', err.message);
-      return res.status(500).json({ error: 'Error en la base de datos' });
+      return res.status(500).json({ error: 'Error al buscar personas' });
     }
-    res.json(filas);
+    res.json(filas || []);
   });
 });
 
-// Libro de Guardia
+// Lectura de Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
   db.all(sql, [`${fecha}%`], (err, filas) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(filas);
+    res.json(filas || []);
   });
 });
 
+// Registro en Libro de Guardia
 app.post('/api/libro-guardia', (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   const now = new Date();
@@ -113,22 +112,31 @@ app.post('/api/libro-guardia', (req, res) => {
   });
 });
 
-// Estado de Fuerza Presente (seguro frente a ausencia de tabla dedicada)
+// Cálculo dinámico de Fuerza Efectiva (sin requerir tablas faltantes)
 app.get('/api/fuerza-presente', (req, res) => {
-  const sql = `
-    SELECT accion, COUNT(*) as total 
-    FROM libro_guardia 
-    WHERE fecha_completa LIKE ? 
-    GROUP BY accion
-  `;
   const hoy = `${new Date().toISOString().split('T')[0]}%`;
+  const sql = `SELECT protagonista, accion FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
 
   db.all(sql, [hoy], (err, filas) => {
-    if (err) return res.json([]);
-    res.json(filas);
+    if (err) return res.json({ presentes: 0, planta: 8, cad1: 1, cad2: 1, cad3: 1, vehiculos: 4 });
+
+    const adentro = new Set();
+    (filas || []).forEach(m => {
+      if (m.accion === 'INGRESO') adentro.add(m.protagonista);
+      if (m.accion === 'EGRESO') adentro.delete(m.protagonista);
+    });
+
+    res.json({
+      presentes: adentro.size,
+      planta: 8,
+      cad1: 1,
+      cad2: 1,
+      cad3: 1,
+      vehiculos: 4
+    });
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`Guardia IESP en puerto ${PORT}`);
+  console.log(`Guardia IESP activa en puerto ${PORT}`);
 });

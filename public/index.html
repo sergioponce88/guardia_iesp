@@ -112,7 +112,7 @@
             <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
           </button>
 
-          <!-- Barra de Búsqueda con Micrófono Integrado -->
+          <!-- Búsqueda con Micrófono Optimizado para Celular -->
           <div class="relative flex items-center">
             <input 
               type="text" 
@@ -121,7 +121,7 @@
               autocomplete="off"
               class="w-full pl-3 pr-9 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
             />
-            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por voz con micrófono">
+            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por voz dictando">
               <i id="icono-mic" class="fa-solid fa-microphone text-sm"></i>
             </button>
             <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
@@ -292,9 +292,9 @@
     </div>
   </div>
 
-  <!-- Modal Listado Fuerza Efectiva Completo -->
+  <!-- Modal Listado Fuerza Efectiva Completo con Editar y Eliminar -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-3 shadow-xl">
+    <div class="bg-white rounded-lg p-5 max-w-4xl w-full space-y-3 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-slate-800 text-sm flex items-center">
           <i class="fa-solid fa-users text-indigo-600 mr-2"></i> Directorio General - Fuerza Efectiva
@@ -309,7 +309,7 @@
               <th class="p-2">Apellido y Nombre</th>
               <th class="p-2">Jerarquía / Rol</th>
               <th class="p-2">N° de Legajo</th>
-              <th class="p-2 text-center">Acción</th>
+              <th class="p-2 text-center">Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-directorio-body" class="divide-y divide-slate-200"></tbody>
@@ -471,13 +471,12 @@
     }
 
     // ==========================================
-    // BÚSQUEDA POR VOZ MEDIANTE MICRÓFONO
+    // BÚSQUEDA POR VOZ ÓPTIMA PARA CELULAR
     // ==========================================
     function iniciarBusquedaPorVoz() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
       if (!SpeechRecognition) {
-        alert("Su navegador no soporta la búsqueda por voz. Utilice Google Chrome o un navegador compatible.");
+        alert("Su navegador no soporta búsqueda por voz.");
         return;
       }
 
@@ -501,9 +500,8 @@
         inputBuscar.dispatchEvent(new Event('input'));
       };
 
-      recognition.onerror = (event) => {
-        console.error("Error en reconocimiento de voz:", event.error);
-        alert("No se pudo capturar el audio. Intente nuevamente.");
+      recognition.onerror = () => {
+        alert("No se pudo capturar el audio.");
       };
 
       recognition.onend = () => {
@@ -535,7 +533,7 @@
         escanearFrameVideo();
 
       } catch (err) {
-        console.error("Error al acceder a la cámara:", err);
+        console.error("Error cámara:", err);
         statusText.innerText = "Error: no se pudo iniciar la cámara.";
         alert("No se pudo iniciar la cámara. Verifique permisos.");
         cerrarCamaraQR();
@@ -603,7 +601,7 @@
           const listaEncontrada = await resBusqueda.json();
 
           if (!listaEncontrada || listaEncontrada.length === 0) {
-            alert('No se encontró ningún efectivo con ese apellido en la base de datos.');
+            alert('No se encontró ningún efectivo con ese apellido.');
             return;
           }
 
@@ -759,7 +757,7 @@
 
     async function desvincularQrPersona() {
       if (!personaSeleccionada || !personaSeleccionada.id) return;
-      if (!confirm("¿Está seguro que desea desvincular este código QR de este efectivo?")) return;
+      if (!confirm("¿Está seguro que desea desvincular este código QR?")) return;
 
       await fetch(`/api/personas/${personaSeleccionada.id}`, {
         method: 'PUT',
@@ -910,6 +908,9 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
+    // ==========================================
+    // DIRECTORIO FUERZA EFECTIVA CON EDITAR Y ELIMINAR
+    // ==========================================
     async function abrirModalFuerzaEfectiva() {
       try {
         const res = await fetch('/api/personal-completo');
@@ -938,10 +939,10 @@
             <td class="p-2 font-bold text-slate-800">${nom}</td>
             <td class="p-2 text-slate-500">${jer}</td>
             <td class="p-2 font-mono text-blue-600">${chp}</td>
-            <td class="p-2 text-center">
-              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[10px] font-semibold shadow">
-                Seleccionar
-              </button>
+            <td class="p-2 text-center space-x-1">
+              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow">Seleccionar</button>
+              <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow"><i class="fa-solid fa-pen"></i></button>
+              <button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold shadow"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>
         `;
@@ -962,6 +963,23 @@
     function seleccionarEfectivoDirectorio(p) {
       seleccionarPersona(p);
       cerrarModalFuerzaEfectiva();
+    }
+
+    function editarDesdeDirectorio(p) {
+      cerrarModalFuerzaEfectiva();
+      seleccionarPersona(p);
+      abrirModalEditarPersona();
+    }
+
+    async function eliminarEfectivo(id) {
+      if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
+      try {
+        await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+        alert("Efectivo eliminado correctamente.");
+        abrirModalFuerzaEfectiva(); // Refrescar lista
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }

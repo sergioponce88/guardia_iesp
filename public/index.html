@@ -379,9 +379,14 @@
         return;
       }
       lista.forEach(p => {
+        const nom = p.nombre_completo || p.nombre || 'Sin Nombre';
+        const jer = p.jerarquia_rol || p.jerarquia || '';
+        const doc = p.dni ? `DNI: ${p.dni}` : 'Sin DNI';
+        const chp = p.chapa || p.credencial_numero || '';
+
         const div = document.createElement('div');
         div.className = 'p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 flex justify-between items-center';
-        div.innerHTML = `<div><strong class="text-xs text-slate-800">${p.nombre}</strong><br><span class="text-[10px] text-slate-500">${p.jerarquia || ''} - DNI: ${p.dni || ''}</span></div><span class="text-[10px] text-blue-600 font-mono">${p.chapa || ''}</span>`;
+        div.innerHTML = `<div><strong class="text-xs text-slate-800">${nom}</strong><br><span class="text-[10px] text-slate-500">${jer} - ${doc}</span></div><span class="text-[10px] text-blue-600 font-mono">${chp}</span>`;
         div.onclick = () => {
           seleccionarPersona(p);
           box.classList.add('hidden');
@@ -394,12 +399,17 @@
 
     function seleccionarPersona(p) {
       personaSeleccionada = p;
-      document.getElementById('persona-nombre').innerText = p.nombre;
-      document.getElementById('persona-sub').innerText = p.jerarquia || 'Personal';
-      document.getElementById('persona-det').innerText = `DNI: ${p.dni || 'S/D'} | Chapa: ${p.chapa || 'S/D'}`;
+      const nom = p.nombre_completo || p.nombre || 'Personal';
+      const jer = p.jerarquia_rol || p.jerarquia || 'Personal';
+      const doc = p.dni || 'S/D';
+      const chp = p.chapa || p.credencial_numero || 'S/D';
+
+      document.getElementById('persona-nombre').innerText = nom;
+      document.getElementById('persona-sub').innerText = jer;
+      document.getElementById('persona-det').innerText = `DNI: ${doc} | Chapa: ${chp}`;
       document.getElementById('btn-editar').classList.remove('hidden');
 
-      const enlace = p.credencial_url || p.credencial;
+      const enlace = p.credencial_url || p.credencial || p.enlace_oficial || p.enlace;
       const btnCred = document.getElementById('btn-credencial');
       const hashSpan = document.getElementById('persona-hash');
       const imgFoto = document.getElementById('foto-persona');
@@ -409,7 +419,7 @@
         btnCred.classList.remove('hidden');
         hashSpan.innerText = '#' + enlace.trim().split('/').pop().replace('#', '').slice(0, 8);
 
-        // Foto oficial extraída por el proxy
+        // Extracción de la imagen oficial con Referer mediante el proxy
         imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
         imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
       } else {
@@ -418,11 +428,14 @@
         imgFoto.src = placeholderSvg;
       }
 
-      if (p.vehiculo_patente && p.vehiculo_patente.trim() !== '') {
+      const pat = p.vehiculo_patente || p.patente || '';
+      const mod = p.vehiculo_modelo || p.modelo || '';
+
+      if (pat.trim() !== '') {
         document.getElementById('seccion-con-vehiculo').classList.remove('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-        document.getElementById('persona-patente').innerText = p.vehiculo_patente;
-        document.getElementById('persona-modelo').innerText = p.vehiculo_modelo || 'Vehículo Personal';
+        document.getElementById('persona-patente').innerText = pat;
+        document.getElementById('persona-modelo').innerText = mod || 'Vehículo Personal';
       } else {
         document.getElementById('seccion-con-vehiculo').classList.add('hidden');
         document.getElementById('seccion-sin-vehiculo').classList.remove('hidden');
@@ -453,8 +466,8 @@
           seleccionarPersona(datos[0]);
         } else {
           seleccionarPersona({
-            nombre: 'Titular Oficial Credencial',
-            jerarquia: 'Consultado por QR',
+            nombre_completo: 'Titular Oficial Credencial',
+            jerarquia_rol: 'Consultado por QR',
             dni: 'S/D',
             credencial_url: enlace
           });
@@ -507,15 +520,19 @@
       let accion = tipo;
       let detalle = modo;
 
+      const nom = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
+      const jer = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
+      const pat = personaSeleccionada.vehiculo_patente || personaSeleccionada.patente || 'S/D';
+
       if (modo.includes('Móvil')) {
         accion = `VEHÍCULO (${tipo})`;
-        detalle = `${tipo} al mando de titular [Patente: ${personaSeleccionada.vehiculo_patente || 'S/D'}]`;
+        detalle = `${tipo} al mando de titular [Patente: ${pat}]`;
       }
 
       const payload = {
         puesto,
         accion,
-        protagonista: `${personaSeleccionada.jerarquia || ''} ${personaSeleccionada.nombre}`.trim(),
+        protagonista: `${jer} ${nom}`.trim(),
         detalle,
         rubro: 'PERSONAL'
       };
@@ -573,7 +590,6 @@
       alert(`Preparando reporte de ${seleccionados.length} novedades para transmisión por WhatsApp.`);
     }
 
-    // Funciones de Modales
     function abrirModalOficial() { document.getElementById('modal-oficial').classList.remove('hidden'); }
     function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
     async function guardarOficialServicio() {

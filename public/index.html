@@ -34,8 +34,9 @@
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
       </button>
-      <button onclick="alert('Fuerza Efectiva total: 328 efectivos.')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva (328)
+      <!-- BOTÓN FUERZA EFECTIVA CON LISTADO SELECTIVO -->
+      <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+        <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva
       </button>
       <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-car mr-1.5"></i> Vehículos
@@ -138,9 +139,14 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between">
                   <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
-                  <button id="btn-editar" onclick="abrirModalVehiculo()" class="text-[11px] text-blue-600 hover:underline flex items-center hidden font-semibold">
-                    <i class="fa-solid fa-pen mr-1"></i> Editar Vehículo
-                  </button>
+                  <div class="space-x-1">
+                    <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold" title="Editar Datos Personales">
+                      <i class="fa-solid fa-user-pen"></i> Datos
+                    </button>
+                    <button id="btn-editar" onclick="abrirModalVehiculo()" class="text-[10px] text-emerald-600 hover:underline hidden font-semibold" title="Editar Vehículo">
+                      <i class="fa-solid fa-car"></i> Móvil
+                    </button>
+                  </div>
                 </div>
                 <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
                 <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
@@ -165,7 +171,6 @@
               >
                 Abrir Validación Oficial en Línea
               </a>
-              <!-- Botón para asociar credencial si el efectivo ya existe pero no la tiene -->
               <button id="btn-vincular-qr" onclick="vincularQrAEfectivoActual()" class="hidden w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1 rounded text-[11px] mt-1 shadow-sm transition-colors">
                 <i class="fa-solid fa-link mr-1"></i> Vincular este QR a este Nombre
               </button>
@@ -268,36 +273,74 @@
         </h3>
         <button onclick="cerrarCamaraQR()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
       </div>
-      
       <p class="text-xs text-slate-500">Apuntá el código QR oficial de la credencial frente a la cámara.</p>
-
       <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border-2 border-blue-500 shadow-inner">
         <video id="video-qr" class="w-full h-full object-cover" playsinline autoplay muted></video>
         <canvas id="canvas-qr" class="hidden"></canvas>
-        <div class="absolute inset-0 pointer-events-none border-4 border-dashed border-white/50 m-6 rounded-lg animate-pulse"></div>
       </div>
-
       <p id="scan-status" class="text-xs text-center text-blue-600 font-medium animate-pulse">Buscando código QR...</p>
-
       <div class="flex justify-end pt-2">
         <button onclick="cerrarCamaraQR()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs">Cerrar Cámara</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Oficial de Servicio -->
-  <div id="modal-oficial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-4 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-shield text-amber-500 mr-2"></i> Asignar Oficial de Servicio
-      </h3>
-      <div>
-        <label class="text-xs text-slate-500 block mb-1">Nombre, Apellido y Grado Oficial</label>
-        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs outline-none focus:ring-1 focus:ring-amber-500" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO">
+  <!-- Modal Listado Fuerza Efectiva Completa -->
+  <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-3 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-users text-indigo-600 mr-2"></i> Directorio General - Fuerza Efectiva
+        </h3>
+        <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
-      <div class="flex justify-end space-x-2">
-        <button onclick="cerrarModalOficial()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
-        <button onclick="guardarOficialServicio()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs">Guardar</button>
+      <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o legajo..." class="w-full border rounded p-2 text-xs outline-none">
+      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Apellido y Nombre</th>
+              <th class="p-2">Jerarquía / Rol</th>
+              <th class="p-2">N° Legajo</th>
+              <th class="p-2 text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-directorio-body" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="cerrarModalFuerzaEfectiva()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Datos Personales -->
+  <div id="modal-editar-persona" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center">
+        <i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i> Editar Datos Personales
+      </h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="text-[11px] text-slate-500 block">DNI</label>
+          <input type="text" id="edit-dni" class="w-full border rounded p-1.5 text-xs">
+        </div>
+        <div>
+          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
+          <input type="text" id="edit-chapa" class="w-full border rounded p-1.5 text-xs">
+        </div>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
+        <input type="text" id="edit-nombre" class="w-full border rounded p-1.5 text-xs">
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
+        <input type="text" id="edit-jerarquia" class="w-full border rounded p-1.5 text-xs">
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="cerrarModalEditarPersona()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarEdicionPersona()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded text-xs">Guardar Cambios</button>
       </div>
     </div>
   </div>
@@ -306,7 +349,7 @@
   <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-car text-emerald-600 mr-2"></i> Asignar Vehículo
+        <i class="fa-solid fa-car text-emerald-600 mr-2"></i> Asignar / Editar Vehículo
       </h3>
       <div>
         <label class="text-[11px] text-slate-500 block">Modelo / Marca</label>
@@ -317,8 +360,8 @@
         <input type="text" id="vehiculo-patente-input" class="w-full border border-slate-300 rounded p-1.5 text-xs uppercase font-mono outline-none" placeholder="Ej: AA 112 FB">
       </div>
       <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalVehiculo()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
-        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs">Asignar y Guardar</button>
+        <button onclick="cerrarModalVehiculo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded text-xs">Guardar Móvil</button>
       </div>
     </div>
   </div>
@@ -346,48 +389,24 @@
         </table>
       </div>
       <div class="flex justify-end">
-        <button onclick="cerrarModalListaVehiculos()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs">Cerrar</button>
+        <button onclick="cerrarModalListaVehiculos()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Nuevo Integrante -->
-  <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
+  <!-- Modal Oficial de Servicio -->
+  <div id="modal-oficial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-4 shadow-xl">
       <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Alta de Integrante
+        <i class="fa-solid fa-user-shield text-amber-500 mr-2"></i> Asignar Oficial de Servicio
       </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="nuevo-dni" class="w-full border rounded p-1.5 text-xs">
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
-          <input type="text" id="nuevo-chapa" class="w-full border rounded p-1.5 text-xs">
-        </div>
-      </div>
       <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS">
+        <label class="text-xs text-slate-500 block mb-1">Nombre, Apellido y Grado Oficial</label>
+        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs outline-none" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO">
       </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <select id="nuevo-jerarquia" class="w-full border rounded p-1.5 text-xs">
-          <option value="Cadete 1° Año">Cadete 1° Año</option>
-          <option value="Cadete 2° Año">Cadete 2° Año</option>
-          <option value="Cadete 3° Año">Cadete 3° Año</option>
-          <option value="Planta Policial">Planta Policial</option>
-          <option value="Visita">Visita</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
-        <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/...">
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalNuevo()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded text-xs">Cancelar</button>
-        <button onclick="guardarNuevoIntegrante()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs">Dar de Alta</button>
+      <div class="flex justify-end space-x-2">
+        <button onclick="cerrarModalOficial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarOficialServicio()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar</button>
       </div>
     </div>
   </div>
@@ -395,9 +414,10 @@
   <script>
     let personaSeleccionada = null;
     let registrosCargados = [];
+    let directorioGlobal = [];
     let streamVideo = null;
     let scanInterval = null;
-    let tokenQrPendiente = null; // Almacena el token escaneado si la persona ya existe sin QR
+    let tokenQrPendiente = null;
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -508,32 +528,25 @@
         const datos = await res.json();
         
         if (datos && datos.length > 0) {
-          // Si encontró a la persona por su token, la selecciona de inmediato
           seleccionarPersona(datos[0]);
         } else {
-          // Si no está registrado el token en la base de datos, guardamos el enlace temporalmente
           tokenQrPendiente = enlace;
-          
-          // Creamos una tarjeta temporal para que el usuario pueda buscar su nombre y vincularlo
           seleccionarPersona({
             nombre_completo: 'Efectivo sin credencial vinculada',
-            jerarquia_rol: 'Escanee o busque su nombre abajo para asociarlo',
+            jerarquia_rol: 'Busque su nombre abajo para asociarlo',
             cargo_chapa: 'S/D',
             dni: 'S/D',
             credencial_url: enlace
           });
-
-          alert('Este código QR aún no está asignado en la base de datos local. Busque el nombre del efectivo en la barra de búsqueda y haga clic en "Vincular este QR a este Nombre".');
+          alert('Este código QR aún no está asignado. Busque el nombre del efectivo en la barra de búsqueda y haga clic en "Vincular este QR a este Nombre".');
         }
       } catch (err) {
         console.error(err);
       }
     }
 
-    // Función para asociar el QR escaneado a una persona que ya está en el programa pero no tenía enlace
     async function vincularQrAEfectivoActual() {
       if (!personaSeleccionada || !tokenQrPendiente) return;
-      
       const idPersona = personaSeleccionada.id;
       if (!idPersona) {
         alert('Seleccione primero a un efectivo existente desde la barra de búsqueda.');
@@ -541,22 +554,17 @@
       }
 
       const hash = tokenQrPendiente.trim().split('/').pop().replace('#', '');
-
       await fetch(`/api/personas/${idPersona}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credencial_url: tokenQrPendiente,
-          credencial_token: hash
-        })
+        body: JSON.stringify({ credencial_url: tokenQrPendiente, credencial_token: hash })
       });
 
       personaSeleccionada.credencial_url = tokenQrPendiente;
       personaSeleccionada.credencial_token = hash;
       tokenQrPendiente = null;
-      
       seleccionarPersona(personaSeleccionada);
-      alert('¡Credencial vinculada y guardada con éxito a este efectivo!');
+      alert('¡Credencial vinculada con éxito!');
     }
 
     async function pegarQRManual() {
@@ -602,6 +610,7 @@
       document.getElementById('persona-sub').innerText = jer;
       document.getElementById('persona-det').innerText = `DNI: ${doc} | N° Legajo: ${chp}`;
       document.getElementById('btn-editar').classList.remove('hidden');
+      document.getElementById('btn-editar-persona').classList.remove('hidden');
 
       let enlace = p.credencial_url;
       if (!enlace && p.credencial_token) {
@@ -628,8 +637,6 @@
         btnCred.classList.add('hidden');
         hashSpan.innerText = 'Sin Enlace';
         imgFoto.src = placeholderSvg;
-        
-        // Si hay un QR pendiente de escanear y buscamos al efectivo manualmente, mostramos el botón de vincular
         if (tokenQrPendiente && p.id) {
           btnVincular.classList.remove('hidden');
         } else {
@@ -677,9 +684,10 @@
       document.getElementById('btn-credencial').classList.add('hidden');
       document.getElementById('btn-vincular-qr').classList.add('hidden');
       document.getElementById('btn-editar').classList.add('hidden');
+      document.getElementById('btn-editar-persona').classList.add('hidden');
       document.getElementById('persona-hash').innerText = 'Sin Enlace';
       document.getElementById('seccion-con-vehiculo').classList.add('hidden');
-      document.getElementById('seccion-sin-vehiculo').classList.remove('hidden');
+      document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
     }
 
     async function cargarLibro() {
@@ -819,23 +827,101 @@
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
     }
 
-    function abrirModalOficial() {
-      document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
-      document.getElementById('modal-oficial').classList.remove('hidden');
-    }
-    function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
-    async function guardarOficialServicio() {
-      const val = document.getElementById('input-oficial-nombre').value.trim();
-      if (!val) return;
-      await fetch('/api/configuracion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clave: 'oficial_servicio', valor: val })
-      });
-      document.getElementById('txt-oficial-servicio').innerText = val;
-      cerrarModalOficial();
+    // Modal Fuerza Efectiva (Directorio Completo con Selección)
+    async function abrirModalFuerzaEfectiva() {
+      try {
+        const res = await fetch('/api/buscar?q=a'); // Trae un listado amplio
+        const lista = await res.json();
+        directorioGlobal = Array.isArray(lista) ? lista : [];
+        renderizarDirectorio(directorioGlobal);
+        document.getElementById('modal-fuerza-efectiva').classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+      }
     }
 
+    function renderizarDirectorio(lista) {
+      const tbody = document.getElementById('tabla-directorio-body');
+      tbody.innerHTML = '';
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin registros.</td></tr>';
+        return;
+      }
+      lista.forEach(p => {
+        const nom = p.nombre_completo || p.nombre || 'S/D';
+        const jer = p.jerarquia_rol || p.jerarquia || '';
+        const chp = p.cargo_chapa || p.chapa || 'S/D';
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-2 font-bold text-slate-800">${nom}</td>
+            <td class="p-2 text-slate-500">${jer}</td>
+            <td class="p-2 font-mono text-blue-600">${chp}</td>
+            <td class="p-2 text-center">
+              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[10px] font-semibold shadow">
+                Seleccionar
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function filtrarDirectorio() {
+      const txt = document.getElementById('filtro-directorio').value.toLowerCase();
+      const filtrados = directorioGlobal.filter(p => {
+        const n = (p.nombre_completo || p.nombre || '').toLowerCase();
+        const j = (p.jerarquia_rol || p.jerarquia || '').toLowerCase();
+        const c = (p.cargo_chapa || p.chapa || '').toLowerCase();
+        return n.includes(txt) || j.includes(txt) || c.includes(txt);
+      });
+      renderizarDirectorio(filtrados);
+    }
+
+    function seleccionarEfectivoDirectorio(p) {
+      seleccionarPersona(p);
+      cerrarModalFuerzaEfectiva();
+    }
+
+    function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
+
+    // Modal Editar Datos Personales
+    function abrirModalEditarPersona() {
+      if (!personaSeleccionada) return;
+      document.getElementById('edit-dni').value = personaSeleccionada.dni || '';
+      document.getElementById('edit-chapa').value = personaSeleccionada.cargo_chapa || personaSeleccionada.chapa || '';
+      document.getElementById('edit-nombre').value = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
+      document.getElementById('edit-jerarquia').value = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
+      document.getElementById('modal-editar-persona').classList.remove('hidden');
+    }
+    function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
+
+    async function guardarEdicionPersona() {
+      if (!personaSeleccionada || !personaSeleccionada.id) {
+        alert('Debe seleccionar un efectivo registrado en la base de datos.');
+        return;
+      }
+      const dni = document.getElementById('edit-dni').value.trim();
+      const cargo_chapa = document.getElementById('edit-chapa').value.trim();
+      const nombre_completo = document.getElementById('edit-nombre').value.trim();
+      const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
+
+      await fetch(`/api/personas/${personaSeleccionada.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
+      });
+
+      personaSeleccionada.dni = dni;
+      personaSeleccionada.cargo_chapa = cargo_chapa;
+      personaSeleccionada.nombre_completo = nombre_completo;
+      personaSeleccionada.jerarquia_rol = jerarquia_rol;
+
+      seleccionarPersona(personaSeleccionada);
+      cerrarModalEditarPersona();
+      alert('Datos personales actualizados con éxito.');
+    }
+
+    // Modal Vehículo
     function abrirModalVehiculo() {
       if (!personaSeleccionada) {
         alert('Debe buscar y seleccionar a una persona primero.');
@@ -910,26 +996,21 @@
     }
     function cerrarModalListaVehiculos() { document.getElementById('modal-lista-vehiculos').classList.add('hidden'); }
 
-    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
-    function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
-    async function guardarNuevoIntegrante() {
-      const dni = document.getElementById('nuevo-dni').value.trim();
-      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
-      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
-      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
-      const credencial_url = document.getElementById('nuevo-credencial').value.trim();
-
-      if (!nombre_completo) {
-        alert('Ingrese el nombre completo.');
-        return;
-      }
-      await fetch('/api/personas', {
+    function abrirModalOficial() {
+      document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
+      document.getElementById('modal-oficial').classList.remove('hidden');
+    }
+    function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
+    async function guardarOficialServicio() {
+      const val = document.getElementById('input-oficial-nombre').value.trim();
+      if (!val) return;
+      await fetch('/api/configuracion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
+        body: JSON.stringify({ clave: 'oficial_servicio', valor: val })
       });
-      cerrarModalNuevo();
-      alert('Integrante dado de alta con éxito.');
+      document.getElementById('txt-oficial-servicio').innerText = val;
+      cerrarModalOficial();
     }
   </script>
 </body>

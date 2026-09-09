@@ -112,7 +112,7 @@
             <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
           </button>
 
-          <!-- Búsqueda con Micrófono -->
+          <!-- Búsqueda con Dictado Rápido -->
           <div class="relative flex items-center">
             <input 
               type="text" 
@@ -121,7 +121,7 @@
               autocomplete="off"
               class="w-full pl-3 pr-9 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
             />
-            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por voz dictando">
+            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por dictado rápido">
               <i id="icono-mic" class="fa-solid fa-microphone text-sm"></i>
             </button>
             <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
@@ -519,43 +519,15 @@
     }
 
     // ==========================================
-    // BÚSQUEDA POR VOZ SILENCIOSA Y FLUIDA
+    // BÚSQUEDA RÁPIDA POR DICTADO LIMPIO
     // ==========================================
     function iniciarBusquedaPorVoz() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        return;
-      }
+      const valorDictado = prompt("Dictar o escribir el nombre, apellido o DNI a buscar:");
+      if (!valorDictado) return;
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'es-AR';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      const iconoMic = document.getElementById('icono-mic');
       const inputBuscar = document.getElementById('input-buscar');
-
-      iconoMic.classList.remove('fa-microphone', 'text-slate-400');
-      iconoMic.classList.add('fa-microphone-lines', 'text-red-500', 'animate-pulse');
-      inputBuscar.placeholder = "Escuchando... Hable ahora...";
-
-      recognition.start();
-
-      recognition.onresult = (event) => {
-        const textoTranscrito = event.results[0][0].transcript;
-        inputBuscar.value = textoTranscrito;
-        inputBuscar.dispatchEvent(new Event('input'));
-      };
-
-      recognition.onerror = () => {
-        // Se maneja de forma silenciosa para evitar alertas molestas en pantalla
-      };
-
-      recognition.onend = () => {
-        iconoMic.classList.remove('fa-microphone-lines', 'text-red-500', 'animate-pulse');
-        iconoMic.classList.add('fa-microphone', 'text-slate-400');
-        inputBuscar.placeholder = "Busque por DNI, Apellido, N° de Legajo o Grado...";
-      };
+      inputBuscar.value = valorDictado;
+      inputBuscar.dispatchEvent(new Event('input'));
     }
 
     async function iniciarCamaraQR() {

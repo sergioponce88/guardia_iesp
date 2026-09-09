@@ -7,12 +7,11 @@ const cheerio = require('cheerio');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión a la base de datos SQLite
+// Base de datos SQLite local
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -22,63 +21,53 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Endpoint proxy para extraer y servir la foto de la credencial oficial
+// Endpoint proxy para extraer la foto oficial desde credenciales.dpd1.ar
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
 
   try {
-    const respuesta = await axios.get(url, {
+    const hash = url.trim().split('/').pop().replace('#', '');
+    const paginaUrl = `https://credenciales.dpd1.ar/publicoQR/${hash}`;
+
+    const respuestaHtml = await axios.get(paginaUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       },
-      timeout: 7000
+      timeout: 8000
     });
 
-    const $ = cheerio.load(respuesta.data);
-    
-    // Buscar la imagen en selectores comunes o por atributo base64
-    let fotoSrc = $('img#foto, img.foto-credencial, img[src*="fotos"], img[src*="credencial"], img[src*="personal"]').attr('src');
-
-    // Si no está en tag <img>, buscar patrón data:image en scripts o HTML crudo
-    if (!fotoSrc) {
-      const match = respuesta.data.match(/data:image\/[a-zA-Z]+;base64,[^"'\s]+/);
-      if (match) {
-        fotoSrc = match[0];
-      }
+    // Localizar el token JWT de la imagen dentro del HTML o scripts
+    const match = respuestaHtml.data.match(/\/api\/imagen\/[a-zA-Z0-9_\-\.]+/);
+    if (!match) {
+      return res.status(404).send('Token de imagen no encontrado');
     }
 
-    if (!fotoSrc) {
-      return res.status(404).send('Foto no localizada en la credencial');
-    }
+    const imagenUrl = `https://credenciales.dpd1.ar${match[0]}`;
 
-    // Caso 1: Imagen codificada en Base64
-    if (fotoSrc.startsWith('data:image')) {
-      const partes = fotoSrc.split(',');
-      const mime = partes[0].match(/:(.*?);/)[1];
-      const imgBuffer = Buffer.from(partes[1], 'base64');
-      res.set('Content-Type', mime);
-      return res.send(imgBuffer);
-    }
+    // Descarga de la imagen enviando el Referer obligatorio para evitar el error de lectura
+    const imagenRes = await axios.get(imagenUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        'Referer': paginaUrl,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+      },
+      timeout: 8000
+    });
 
-    // Caso 2: URL relativa
-    if (fotoSrc.startsWith('/')) {
-      fotoSrc = 'https://credenciales.dpdt.ar' + fotoSrc;
-    }
-
-    // Caso 3: URL externa completa
-    const stream = await axios.get(fotoSrc, { responseType: 'arraybuffer' });
-    res.set('Content-Type', stream.headers['content-type'] || 'image/jpeg');
-    res.send(stream.data);
+    res.set('Content-Type', imagenRes.headers['content-type'] || 'image/webp');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(imagenRes.data);
 
   } catch (error) {
-    console.error('Error al extraer foto:', error.message);
-    res.status(500).send('Error interno al obtener imagen');
+    console.error('Error al obtener foto oficial:', error.message);
+    res.status(500).send('Error interno al procesar la foto');
   }
 });
 
-// Endpoint de búsqueda de personas
+// Búsqueda de personas
 app.get('/api/buscar', (req, res) => {
   const query = req.query.q || '';
   const sql = `
@@ -97,7 +86,7 @@ app.get('/api/buscar', (req, res) => {
   });
 });
 
-// Endpoint de Libro de Guardia
+// Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
@@ -107,18 +96,39 @@ app.get('/api/libro-guardia', (req, res) => {
   });
 });
 
-// Endpoint de Fuerza Activa
-app.get('/api/fuerza-presente', (req, res) => {
-  const sql = `SELECT * FROM fuerza_activa`;
-  db.all(sql, [], (err, filas) => {
+app.post('/api/libro-guardia', (req, res) => {
+  const { puesto, accion, protagonista, detalle, rubro } = req.body;
+  const now = new Date();
+  const hora = now.toTimeString().split(' ')[0].substring(0, 5);
+  const fechaCompleta = now.toISOString().replace('T', ' ').substring(0, 19);
+
+  const sql = `
+    INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 0, 0)
+  `;
+
+  db.run(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL'], function (err) {
     if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, success: true });
+  });
+});
+
+// Estado de Fuerza Presente (seguro frente a ausencia de tabla dedicada)
+app.get('/api/fuerza-presente', (req, res) => {
+  const sql = `
+    SELECT accion, COUNT(*) as total 
+    FROM libro_guardia 
+    WHERE fecha_completa LIKE ? 
+    GROUP BY accion
+  `;
+  const hoy = `${new Date().toISOString().split('T')[0]}%`;
+
+  db.all(sql, [hoy], (err, filas) => {
+    if (err) return res.json([]);
     res.json(filas);
   });
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`========================================`);
-  console.log(` Guardia IESP Activa en http://localhost:${PORT}`);
-  console.log(`========================================`);
+  console.log(`Guardia IESP en puerto ${PORT}`);
 });

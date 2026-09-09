@@ -10,7 +10,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión SQLite
+// Base de datos SQLite
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -20,7 +20,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Tablas auxiliares
+// Estructuras base
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS libro_guardia (
@@ -47,7 +47,7 @@ db.serialize(() => {
   `);
 });
 
-// Proxy de extracción de foto oficial
+// Proxy de foto oficial DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -113,22 +113,20 @@ app.get('/api/buscar', (req, res) => {
   });
 });
 
-// Detector profundo de vehículos existentes en cualquier tabla o columna
+// Listado profundo de vehículos
 app.get('/api/vehiculos', (req, res) => {
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], async (err, tablas) => {
     if (err || !tablas || tablas.length === 0) return res.json([]);
 
     let resultados = [];
-
     for (const t of tablas) {
       if (['libro_guardia', 'configuracion_guardia'].includes(t.name)) continue;
 
       const filas = await new Promise((resolve) => {
-        db.all(`SELECT * FROM ${t.name} LIMIT 200`, [], (e, rows) => resolve(rows || []));
+        db.all(`SELECT * FROM ${t.name} LIMIT 300`, [], (e, rows) => resolve(rows || []));
       });
 
       filas.forEach(f => {
-        // Barrer todos los campos del registro buscando indicios de patente o vehículo
         let patenteEncontrada = null;
         let modeloEncontrado = null;
         let titular = f.nombre_completo || f.nombre || f.titular || f.apellido || 'Personal Policial';
@@ -158,20 +156,17 @@ app.get('/api/vehiculos', (req, res) => {
         }
       });
     }
-
     res.json(resultados);
   });
 });
 
-// Guardar/Actualizar vehículo
+// Actualizar vehículo de persona
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente } = req.body;
   
-  // Detecta en qué tabla está el ID y actualiza
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
     
-    // Asegurar columnas
     db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_patente TEXT`, () => {});
     db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_modelo TEXT`, () => {
       const sql = `UPDATE ${tabla} SET vehiculo_modelo = ?, vehiculo_patente = ? WHERE id = ?`;
@@ -179,6 +174,24 @@ app.put('/api/personas/:id', (req, res) => {
         if (e) return res.status(500).json({ error: e.message });
         res.json({ success: true });
       });
+    });
+  });
+});
+
+// Alta de nueva persona
+app.post('/api/personas', (req, res) => {
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
+  
+  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
+    const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
+    
+    const sql = `
+      INSERT INTO ${tabla} (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    db.run(sql, [dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente], function (e) {
+      if (e) return res.status(500).json({ error: e.message });
+      res.json({ id: this.lastID, success: true });
     });
   });
 });
@@ -221,7 +234,7 @@ app.post('/api/libro-guardia/marcar-enviados', (req, res) => {
   });
 });
 
-// Totales de Fuerza
+// Fuerza presente
 app.get('/api/fuerza-presente', (req, res) => {
   const hoy = `${new Date().toISOString().split('T')[0]}%`;
   const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
@@ -260,7 +273,7 @@ app.get('/api/fuerza-presente', (req, res) => {
   });
 });
 
-// Oficial de Servicio
+// Configuración de Oficial de Servicio
 app.get('/api/configuracion/:clave', (req, res) => {
   db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
     res.json({ valor: fila ? fila.valor : null });

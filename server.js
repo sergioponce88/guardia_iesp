@@ -10,7 +10,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión a la base de datos SQLite
+// Base de datos SQLite
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -22,23 +22,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Estructuras base
 db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS personas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      dni TEXT,
-      nombre TEXT,
-      apellido TEXT,
-      jerarquia TEXT,
-      rol TEXT,
-      chapa TEXT,
-      area TEXT,
-      credencial_url TEXT,
-      credencial TEXT,
-      vehiculo_modelo TEXT,
-      vehiculo_patente TEXT
-    )
-  `);
-
   db.run(`
     CREATE TABLE IF NOT EXISTS libro_guardia (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +47,7 @@ db.serialize(() => {
   `);
 });
 
-// Extractor proxy de foto oficial vía credenciales.dpd1.ar
+// Endpoint proxy oficial: resuelve el token JWT y extrae la foto con Referer
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -88,7 +71,6 @@ app.get('/api/extraer-foto', async (req, res) => {
 
     const imagenUrl = `https://credenciales.dpd1.ar${match[0]}`;
 
-    // Descarga enviando la cabecera Referer obligatoria
     const imagenRes = await axios.get(imagenUrl, {
       responseType: 'arraybuffer',
       headers: {
@@ -103,40 +85,50 @@ app.get('/api/extraer-foto', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(imagenRes.data);
   } catch (error) {
-    console.error('Error al obtener foto oficial:', error.message);
-    res.status(500).send('Error al procesar la foto');
+    console.error('Error al procesar foto:', error.message);
+    res.status(500).send('Error interno en extracción');
   }
 });
 
-// Búsqueda autoadaptable: inspecciona las columnas reales de la tabla para evitar error 500
+// Búsqueda inteligente autoadaptable a cualquier esquema de tablas y columnas
 app.get('/api/buscar', (req, res) => {
-  const query = (req.query.q || '').trim();
-  if (!query) return res.json([]);
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
 
-  db.all(`PRAGMA table_info(personas)`, [], (errPragma, columnas) => {
-    if (errPragma || !columnas || columnas.length === 0) {
-      return res.status(500).json({ error: 'No se encontró la tabla personas' });
-    }
+  db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
+    if (err || !tablas || tablas.length === 0) return res.json([]);
 
-    const camposTexto = columnas
-      .map(c => c.name)
-      .filter(n => !['id', 'created_at'].includes(n));
+    // Buscar una tabla de personas o utilizar la primera disponible que no sea de logs
+    const nombreTabla = tablas.find(t => 
+      ['personas', 'personal', 'cadetes', 'fuerza', 'integrantes'].includes(t.name.toLowerCase())
+    )?.name || tablas.find(t => t.name !== 'libro_guardia' && t.name !== 'configuracion_guardia')?.name || tablas[0].name;
 
-    const whereClause = camposTexto.map(c => `CAST(${c} AS TEXT) LIKE ?`).join(' OR ');
-    const sql = `SELECT * FROM personas WHERE ${whereClause} LIMIT 15`;
-    const params = Array(camposTexto.length).fill(`%${query}%`);
+    db.all(`PRAGMA table_info(${nombreTabla})`, [], (errPragma, cols) => {
+      if (errPragma || !cols || cols.length === 0) return res.json([]);
 
-    db.all(sql, params, (err, filas) => {
-      if (err) {
-        console.error('Error al ejecutar búsqueda en SQLite:', err.message);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(filas || []);
+      const campos = cols.map(c => c.name).filter(c => !['id', 'created_at'].includes(c));
+      const where = campos.map(c => `CAST(${c} AS TEXT) LIKE ?`).join(' OR ');
+      const params = Array(campos.length).fill(`%${q}%`);
+
+      db.all(`SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 15`, params, (errQuery, filas) => {
+        if (errQuery) {
+          console.error('Error consulta SQLite:', errQuery.message);
+          return res.json([]);
+        }
+        res.json(filas || []);
+      });
     });
   });
 });
 
-// Alta de integrante
+// Endpoint de diagnóstico para verificar tablas en Render
+app.get('/api/diagnostico', (req, res) => {
+  db.all(`SELECT name FROM sqlite_master WHERE type='table'`, [], (err, tablas) => {
+    res.json({ tablas: tablas ? tablas.map(t => t.name) : [], error: err ? err.message : null });
+  });
+});
+
+// Guardar integrante
 app.post('/api/personas', (req, res) => {
   const { dni, nombre, jerarquia, chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
   const sql = `
@@ -149,7 +141,7 @@ app.post('/api/personas', (req, res) => {
   });
 });
 
-// Asignación de vehículo
+// Modificar vehículo de integrante
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente } = req.body;
   const sql = `UPDATE personas SET vehiculo_modelo = ?, vehiculo_patente = ? WHERE id = ?`;
@@ -159,7 +151,7 @@ app.put('/api/personas/:id', (req, res) => {
   });
 });
 
-// Lectura de Libro de Guardia
+// Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
@@ -169,7 +161,6 @@ app.get('/api/libro-guardia', (req, res) => {
   });
 });
 
-// Registro de movimientos en Libro de Guardia
 app.post('/api/libro-guardia', (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   const now = new Date();
@@ -230,7 +221,7 @@ app.get('/api/fuerza-presente', (req, res) => {
   });
 });
 
-// Configuración de Oficial de Servicio
+// Oficial de servicio
 app.get('/api/configuracion/:clave', (req, res) => {
   db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
     if (err) return res.status(500).json({ error: err.message });

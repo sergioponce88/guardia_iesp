@@ -1,1263 +1,291 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>I.E.S.P. "Gral. San Martín" - Control de Guardia</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <style>
-    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  </style>
-</head>
-<body class="bg-slate-100 text-slate-800 text-sm">
+const express = require('express');
+const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+const axios = require('axios');
 
-  <!-- Header Superior (Sin selector de puesto) -->
-  <header class="bg-slate-900 text-white px-4 py-2 flex flex-wrap items-center justify-between border-b border-slate-700 shadow">
-    <div class="flex items-center space-x-3">
-      <div>
-        <h1 class="font-bold text-base leading-tight tracking-wide">I.E.S.P. "Gral. San Martín"</h1>
-        <p class="text-xs text-slate-400">Control de Guardia</p>
-      </div>
-    </div>
-    <div class="flex items-center space-x-2 mt-2 sm:mt-0">
-      <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
-      </button>
-      <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva
-      </button>
-      <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-car mr-1.5"></i> Vehículos
-      </button>
-    </div>
-  </header>
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  <!-- Banner Oficial de Servicio -->
-  <div class="bg-amber-500 text-slate-900 px-4 py-1 text-xs flex justify-between font-medium shadow-sm">
-    <div><span class="font-bold uppercase tracking-wider">OFICIAL DE SERVICIO:</span> <span id="txt-oficial-servicio">OFICIAL SUBAYUDANTE PEDRAZA RAMIRO</span></div>
-    <div>Consignas del Turno: Sin consignas especiales emitidas</div>
-  </div>
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-  <main class="p-4 max-w-7xl mx-auto space-y-4">
+const dbPath = path.resolve(__dirname, 'guardia_iesp.db');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error al conectar con la base de datos:', err.message);
+  } else {
+    console.log('Conectado exitosamente a:', dbPath);
+  }
+});
 
-    <!-- Tarjetas de Fuerza Efectiva en Tiempo Real -->
-    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-      <div class="flex justify-between items-center mb-2">
-        <h2 class="text-xs font-bold text-slate-700 flex items-center uppercase tracking-wider">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-          Fuerza Efectiva en el Instituto (Tiempo Real)
-        </h2>
-        <button onclick="cargarTodo()" class="text-xs text-blue-600 hover:text-blue-800 flex items-center font-semibold">
-          <i class="fa-solid fa-arrows-rotate mr-1"></i> Actualizar
-        </button>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">PLANTA POLICIAL</span>
-          <span id="f-planta" class="text-base font-bold text-slate-800">8 / 131</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 1° AÑO</span>
-          <span id="f-cad1" class="text-base font-bold text-slate-800">1 / 102</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 2° AÑO</span>
-          <span id="f-cad2" class="text-base font-bold text-slate-800">1 / 50</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 3° AÑO</span>
-          <span id="f-cad3" class="text-base font-bold text-slate-800">1 / 74</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">VEHÍCULOS EN PREDIO</span>
-          <span id="f-vehiculos" class="text-base font-bold text-slate-800">4</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">COMISIONES EXT.</span>
-          <span id="f-vehiculos-ext" class="text-base font-bold text-slate-800">0</span>
-        </div>
-      </div>
-    </div>
+// Estructuras de tablas garantizadas
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS personas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dni TEXT,
+      nombre_completo TEXT,
+      jerarquia_rol TEXT,
+      cargo_chapa TEXT,
+      credencial_url TEXT,
+      credencial_token TEXT,
+      vehiculo_modelo TEXT,
+      vehiculo_patente TEXT
+    )
+  `);
 
-    <!-- Panel de Operaciones -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+  db.run(`
+    CREATE TABLE IF NOT EXISTS libro_guardia (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hora TEXT,
+      fecha_completa TEXT,
+      puesto TEXT,
+      accion TEXT,
+      protagonista TEXT,
+      detalle TEXT,
+      rubro TEXT,
+      estado TEXT DEFAULT 'ACTIVO',
+      motivo_anulacion TEXT,
+      notificado_wa INTEGER DEFAULT 0,
+      con_retardo INTEGER DEFAULT 0
+    )
+  `);
 
-      <!-- Columna Izquierda: Control de Acceso -->
-      <div class="lg:col-span-4 space-y-3">
-        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
-          <div class="flex justify-between items-center">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">
-              <i class="fa-solid fa-address-card mr-1 text-slate-500"></i> 1. Ingreso / Egreso Personal, Cadetes y Visitas
-            </h3>
-            <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
-          </div>
+  db.run(`
+    CREATE TABLE IF NOT EXISTS configuracion_guardia (
+      clave TEXT PRIMARY KEY,
+      valor TEXT
+    )
+  `);
+});
 
-          <!-- BOTÓN SCANNER CÁMARA REAL -->
-          <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-            <i class="fa-solid fa-camera mr-2 text-base"></i> Abrir Cámara para Escanear QR
-          </button>
+// Proxy de foto oficial
+app.get('/api/extraer-foto', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('URL requerida');
 
-          <button type="button" onclick="pegarQRManual()" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 py-1.5 rounded text-xs flex items-center justify-center font-medium transition-colors">
-            <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
-          </button>
+  try {
+    const hash = url.trim().split('/').pop().replace('#', '');
+    const paginaUrl = `https://credenciales.dpd1.ar/publicoQR/${hash}`;
 
-          <!-- Búsqueda con Dictado Rápido -->
-          <div class="relative flex items-center">
-            <input 
-              type="text" 
-              id="input-buscar" 
-              placeholder="Busque por DNI, Apellido, N° de Legajo o Grado..." 
-              autocomplete="off"
-              class="w-full pl-3 pr-9 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
-            />
-            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por dictado rápido">
-              <i id="icono-mic" class="fa-solid fa-microphone text-sm"></i>
-            </button>
-            <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
-          </div>
-
-          <!-- Tarjeta del Protagonista Seleccionado -->
-          <div id="tarjeta-persona" class="bg-slate-50 border border-slate-200 rounded p-3 relative space-y-3">
-            <button onclick="limpiarSeleccion()" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-            <div class="flex items-center space-x-3">
-              <div class="w-14 h-14 bg-slate-200 rounded-full border border-slate-300 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
-                <img 
-                  id="foto-persona" 
-                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" 
-                  alt="Foto de Credencial" 
-                  class="w-full h-full object-cover"
-                />
-              </div>
-              <div class="flex-1 min-w-0">
-                <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
-                <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
-                <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
-                <div class="flex space-x-2 mt-1">
-                  <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold">
-                    <i class="fa-solid fa-user-pen"></i> Editar Datos
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div id="badge-estado" class="bg-slate-200/70 text-slate-700 rounded px-2 py-1 text-[11px] font-semibold flex items-center">
-              <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span> FUERA DEL INSTITUTO
-            </div>
-
-            <!-- Credencial Oficial y Botón de Confirmación/Guardado -->
-            <div class="space-y-1 bg-white p-2 rounded border border-slate-200">
-              <div class="flex justify-between items-center text-[11px]">
-                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial QR</span>
-                <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">Sin Enlace</span>
-              </div>
-              <div class="flex space-x-1 pt-1">
-                <button onclick="abrirModalCredencial()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold py-1 rounded transition-colors">
-                  <i class="fa-solid fa-link mr-1"></i> Asociar QR
-                </button>
-                <button id="btn-desvincular-qr" onclick="desvincularQrPersona()" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-semibold px-2 py-1 rounded transition-colors" title="Desvincular">
-                  <i class="fa-solid fa-unlink"></i>
-                </button>
-              </div>
-              <!-- BOTÓN EXPLÍCITO SOLICITADO PARA GUARDAR Y CONFIRMAR VINCULACIÓN -->
-              <button id="btn-confirmar-qr" onclick="confirmarYGuardarVinculacion()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs mt-1 shadow-sm transition-colors">
-                <i class="fa-solid fa-check-circle mr-1"></i> Confirmar y Guardar Vinculación
-              </button>
-              <a 
-                id="btn-credencial" 
-                href="#" 
-                target="_blank" 
-                class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 rounded text-[11px] block text-center shadow-sm transition-colors mt-1"
-              >
-                Abrir Validación Oficial
-              </a>
-            </div>
-
-            <!-- Selector de Puesto Reubicado a continuación del bloque QR -->
-            <div class="pt-2 border-t border-slate-200 space-y-1">
-              <label class="text-[10px] uppercase font-bold text-slate-500 block">PUESTO DE CONTROL ACTIVO:</label>
-              <div class="flex items-center bg-white border border-slate-300 rounded px-2 py-1 text-xs">
-                <span class="text-amber-500 mr-2">📍</span>
-                <select id="sel-puesto" class="bg-transparent text-slate-800 font-semibold w-full outline-none cursor-pointer">
-                  <option value="Puesto 1 (Principal)">Puesto 1 (Principal)</option>
-                  <option value="Puesto 2">Puesto 2</option>
-                  <option value="Puesto 3">Puesto 3</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Submódulo Vehicular -->
-            <div class="pt-2 border-t border-slate-200 space-y-2">
-              <div id="seccion-con-vehiculo" class="hidden space-y-1.5">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="text-slate-500 text-[10px] uppercase font-bold">VEHÍCULO REGISTRADO:</span>
-                  <div class="space-x-2">
-                    <button onclick="abrirModalVehiculo()" class="text-[10px] text-emerald-700 hover:underline font-semibold"><i class="fa-solid fa-pen"></i> Editar</button>
-                    <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300 font-mono"></span>
-                  </div>
-                </div>
-                <p id="persona-modelo" class="text-xs font-semibold text-slate-700"></p>
-                <div class="grid grid-cols-2 gap-2 pt-1">
-                  <button onclick="registrarMovimiento('INGRESO', 'Ingreso c/ Móvil')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                    <i class="fa-solid fa-car mr-1.5"></i> Ingreso c/ Móvil
-                  </button>
-                  <button onclick="registrarMovimiento('EGRESO', 'Egreso c/ Móvil')" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                    <i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Egreso c/ Móvil
-                  </button>
-                </div>
-              </div>
-              <div id="seccion-sin-vehiculo" class="text-center py-1">
-                <p class="text-[11px] text-slate-400 italic mb-1.5">Sin vehículo declarado a su nombre</p>
-                <button onclick="abrirModalVehiculo()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 py-1.5 rounded text-xs font-semibold transition-colors">
-                  <i class="fa-solid fa-plus mr-1"></i> Declarar / Registrar Vehículo Ahora
-                </button>
-              </div>
-            </div>
-
-            <!-- Pase Peatonal -->
-            <div class="space-y-1.5 pt-2 border-t border-slate-200">
-              <span class="text-[10px] uppercase font-bold text-slate-500 block">O PASE PEATONAL (A PIE):</span>
-              <div class="grid grid-cols-2 gap-2">
-                <button onclick="registrarMovimiento('INGRESO', 'A pie')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                  <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Ingreso a Pie
-                </button>
-                <button onclick="registrarMovimiento('EGRESO', 'A pie')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                  <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Egreso a Pie
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Columna Derecha: Libro de Guardia -->
-      <div class="lg:col-span-8">
-        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
-          <div class="flex flex-wrap justify-between items-center gap-2">
-            <div>
-              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">
-                <i class="fa-solid fa-book-open mr-1 text-slate-500"></i> LIBRO DE GUARDIA (EN VIVO)
-              </h3>
-              <p class="text-[11px] text-slate-400">Orden cronológico minuto a minuto</p>
-            </div>
-            <div class="flex items-center space-x-2">
-              <input type="date" id="filtro-fecha" onchange="cargarLibro()" class="border border-slate-300 rounded px-2 py-1 text-xs outline-none" />
-              <button onclick="cargarLibro()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-2.5 py-1 rounded flex items-center shadow transition-colors">
-                <i class="fa-solid fa-clock mr-1"></i> Todo el Día
-              </button>
-              <button onclick="enviarSeleccionadosWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 rounded font-semibold flex items-center shadow transition-colors">
-                <i class="fa-brands fa-whatsapp mr-1.5"></i> Enviar Seleccionados
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto custom-scroll border border-slate-200 rounded">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th class="p-2 w-6 text-center"><input type="checkbox" id="chk-todos" onchange="toggleTodos(this)" /></th>
-                  <th class="p-2">Hora</th>
-                  <th class="p-2">Puesto</th>
-                  <th class="p-2">Evento</th>
-                  <th class="p-2">Protagonista</th>
-                  <th class="p-2">Detalle</th>
-                  <th class="p-2 text-center">WhatsApp / Acción</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-guardia" class="divide-y divide-slate-200"></tbody>
-            </table>
-          </div>
-          <div class="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>Registro activo</span>
-            <span>Asientos registrados: <span id="total-asientos" class="font-bold text-slate-700">0</span></span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <!-- MODAL CÁMARA QR -->
-  <div id="modal-scanner" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-4 max-w-md w-full space-y-3 shadow-2xl relative">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-camera text-blue-600 mr-2"></i> Lector de Credencial Oficial
-        </h3>
-        <button onclick="cerrarCamaraQR()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
-      </div>
-      <p class="text-xs text-slate-500">Apuntá el código QR oficial de la credencial frente a la cámara.</p>
-      <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border-2 border-blue-500 shadow-inner">
-        <video id="video-qr" class="w-full h-full object-cover" playsinline autoplay muted></video>
-        <canvas id="canvas-qr" class="hidden"></canvas>
-      </div>
-      <p id="scan-status" class="text-xs text-center text-blue-600 font-medium animate-pulse">Buscando código QR...</p>
-      <div class="flex justify-end pt-2">
-        <button onclick="cerrarCamaraQR()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs">Cerrar Cámara</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Listado Fuerza Efectiva Completo con Editar, Eliminar y Agregar -->
-  <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-4xl w-full space-y-3 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-users text-indigo-600 mr-2"></i> Directorio General - Fuerza Efectiva
-        </h3>
-        <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-      </div>
-      
-      <div class="flex gap-2">
-        <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="flex-1 border rounded p-2 text-xs outline-none" />
-        <button onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
-          <i class="fa-solid fa-user-plus mr-1.5"></i> Agregar Nuevo
-        </button>
-      </div>
-
-      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-slate-900 text-white uppercase text-[10px]">
-            <tr>
-              <th class="p-2">Apellido y Nombre</th>
-              <th class="p-2">Jerarquía / Rol</th>
-              <th class="p-2">N° de Legajo</th>
-              <th class="p-2 text-center w-40">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-directorio-body" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-      <div class="flex justify-end">
-        <button onclick="cerrarModalFuerzaEfectiva()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Asociar / Editar Credencial QR -->
-  <div id="modal-credencial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-id-card text-blue-600 mr-2"></i> Vincular Enlace de Credencial QR
-      </h3>
-      <div>
-        <label class="text-[11px] text-slate-500 block mb-1">Enlace completo de credencial oficial o Token</label>
-        <input type="text" id="input-credencial-url" class="w-full border rounded p-2 text-xs outline-none" placeholder="Ej: https://credenciales.dpd1.ar/publicoQR/abcdef1234" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalCredencial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarCredencialPersona()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar Credencial</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Editar Datos Personales -->
-  <div id="modal-editar-persona" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i> Editar Datos Personales
-      </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="edit-dni" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
-          <input type="text" id="edit-chapa" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="edit-nombre" class="w-full border rounded p-1.5 text-xs" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <input type="text" id="edit-jerarquia" class="w-full border rounded p-1.5 text-xs" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalEditarPersona()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarEdicionPersona()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded text-xs">Guardar Cambios</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Nuevo Integrante -->
-  <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Alta de Integrante
-      </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="nuevo-dni" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
-          <input type="text" id="nuevo-chapa" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <select id="nuevo-jerarquia" class="w-full border rounded p-1.5 text-xs">
-          <option value="Cadete 1° Año">Cadete 1° Año</option>
-          <option value="Cadete 2° Año">Cadete 2° Año</option>
-          <option value="Cadete 3° Año">Cadete 3° Año</option>
-          <option value="Planta Policial">Planta Policial</option>
-          <option value="Visita">Visita</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
-        <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/..." />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalNuevo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarNuevoIntegrante()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Dar de Alta</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Asignar / Editar Vehículo -->
-  <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-car text-emerald-600 mr-2"></i> Asignar / Editar Vehículo
-      </h3>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Modelo / Marca</label>
-        <input type="text" id="vehiculo-modelo-input" class="w-full border border-slate-300 rounded p-1.5 text-xs outline-none" placeholder="Ej: Renault Fluence / Honda Wave" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Dominio / Patente</label>
-        <input type="text" id="vehiculo-patente-input" class="w-full border border-slate-300 rounded p-1.5 text-xs uppercase font-mono outline-none" placeholder="Ej: AA 112 FB" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalVehiculo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded text-xs">Guardar Móvil</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Listado de Vehículos -->
-  <div id="modal-lista-vehiculos" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-3 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-car-side text-emerald-600 mr-2"></i> Vehículos Registrados en el Sistema
-        </h3>
-        <button onclick="cerrarModalListaVehiculos()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-      </div>
-      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-slate-900 text-white uppercase text-[10px]">
-            <tr>
-              <th class="p-2">Titular</th>
-              <th class="p-2">Jerarquía</th>
-              <th class="p-2">Modelo / Marca</th>
-              <th class="p-2">Patente</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-vehiculos-body" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-      <div class="flex justify-end">
-        <button onclick="cerrarModalListaVehiculos()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Oficial de Servicio -->
-  <div id="modal-oficial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-4 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-shield text-amber-500 mr-2"></i> Asignar Oficial de Servicio
-      </h3>
-      <div>
-        <label class="text-xs text-slate-500 block mb-1">Nombre, Apellido y Grado Oficial</label>
-        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs outline-none" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO" />
-      </div>
-      <div class="flex justify-end space-x-2">
-        <button onclick="cerrarModalOficial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarOficialServicio()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let personaSeleccionada = null;
-    let registrosCargados = [];
-    let directorioGlobal = [];
-    let streamVideo = null;
-    let scanInterval = null;
-    let qrEscaneadoTemporal = null; // Variable para almacenar temporalmente el QR leído por cámara
-    const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-      cargarTodo();
-
-      const input = document.getElementById('input-buscar');
-      input.addEventListener('input', async (e) => {
-        const val = e.target.value.trim();
-        if (val.length < 2) {
-          document.getElementById('resultados-busqueda').classList.add('hidden');
-          return;
-        }
-        try {
-          const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}`);
-          const datos = await res.json();
-          mostrarResultadosBusqueda(datos);
-        } catch (err) {
-          console.error(err);
-        }
-      });
+    const respuestaHtml = await axios.get(paginaUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      timeout: 8000
     });
 
-    function cargarTodo() {
-      cargarLibro();
-      cargarFuerza();
-      cargarOficialServicio();
+    const match = respuestaHtml.data.match(/\/api\/imagen\/[a-zA-Z0-9_\-\.]+/);
+    if (!match) return res.status(404).send('Token no encontrado');
+
+    const imagenUrl = `https://credenciales.dpd1.ar${match[0]}`;
+    const imagenRes = await axios.get(imagenUrl, {
+      responseType: 'arraybuffer',
+      headers: { 'Referer': paginaUrl, 'User-Agent': 'Mozilla/5.0' },
+      timeout: 8000
+    });
+
+    res.set('Content-Type', imagenRes.headers['content-type'] || 'image/webp');
+    res.send(imagenRes.data);
+  } catch (error) {
+    res.status(500).send('Error interno foto');
+  }
+});
+
+// Obtener todo el personal ordenado
+app.get('/api/personal-completo', (req, res) => {
+  db.all(`SELECT * FROM personas ORDER BY id DESC`, [], (e, filas) => {
+    if (e) return res.status(500).json({ error: e.message });
+    res.json(filas || []);
+  });
+});
+
+// Búsqueda general
+app.get('/api/buscar', (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+
+  const sql = `
+    SELECT * FROM personas 
+    WHERE dni LIKE ? OR nombre_completo LIKE ? OR jerarquia_rol LIKE ? OR cargo_chapa LIKE ? OR credencial_token LIKE ?
+    LIMIT 100
+  `;
+  const param = `%${q}%`;
+  db.all(sql, [param, param, param, param, param], (err, filas) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(filas || []);
+  });
+});
+
+// Listado de vehículos
+app.get('/api/vehiculos', (req, res) => {
+  db.all(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`, [], (err, filas) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(filas || []);
+  });
+});
+
+// RUTA PUT CRÍTICA: Actualización segura por ID para guardar datos editados y QR
+app.put('/api/personas/:id', (req, res) => {
+  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
+  const idPersona = req.params.id;
+
+  if (limpiar_credencial) {
+    db.run(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = ?`, [idPersona], function (e) {
+      if (e) return res.status(500).json({ error: e.message });
+      res.json({ success: true });
+    });
+  } else {
+    let tokenCalculado = credencial_token;
+    if (credencial_url && !tokenCalculado) {
+      tokenCalculado = credencial_url.trim().split('/').pop().replace('#', '');
     }
 
-    function iniciarBusquedaPorVoz() {
-      const textoDictado = prompt("Escriba o dicte el apellido, DNI o N° de Legajo a buscar:");
-      if (!textoDictado) return;
+    db.get(`SELECT * FROM personas WHERE id = ?`, [idPersona], (err, actual) => {
+      if (err || !actual) return res.status(404).json({ error: 'Persona no encontrada' });
 
-      const inputBuscar = document.getElementById('input-buscar');
-      inputBuscar.value = textoDictado;
-      inputBuscar.dispatchEvent(new Event('input'));
-    }
+      const nuevoDni = dni !== undefined ? dni : actual.dni;
+      const nuevoNombre = nombre_completo !== undefined ? nombre_completo.toUpperCase() : actual.nombre_completo;
+      const nuevaJerarquia = jerarquia_rol !== undefined ? jerarquia_rol : actual.jerarquia_rol;
+      const nuevoChapa = cargo_chapa !== undefined ? cargo_chapa : actual.cargo_chapa;
+      const nuevaCredUrl = credencial_url !== undefined ? credencial_url : actual.credencial_url;
+      const nuevoToken = tokenCalculado !== undefined ? tokenCalculado : actual.credencial_token;
+      const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+      const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
 
-    async function iniciarCamaraQR() {
-      const modal = document.getElementById('modal-scanner');
-      const video = document.getElementById('video-qr');
-      const statusText = document.getElementById('scan-status');
+      const sql = `
+        UPDATE personas 
+        SET dni = ?, nombre_completo = ?, jerarquia_rol = ?, cargo_chapa = ?, credencial_url = ?, credencial_token = ?, vehiculo_modelo = ?, vehiculo_patente = ?
+        WHERE id = ?
+      `;
 
-      modal.classList.remove('hidden');
-      statusText.innerText = "Accediendo a la cámara...";
-
-      try {
-        streamVideo = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false
-        });
-
-        video.srcObject = streamVideo;
-        video.setAttribute("playsinline", true);
-        await video.play();
-
-        statusText.innerText = "Apunte al código QR...";
-        escanearFrameVideo();
-
-      } catch (err) {
-        console.error("Error cámara:", err);
-        statusText.innerText = "Error: no se pudo iniciar la cámara.";
-      }
-    }
-
-    function escanearFrameVideo() {
-      const video = document.getElementById('video-qr');
-      const canvas = document.getElementById('canvas-qr');
-      const ctx = canvas.getContext('2d');
-
-      const tick = () => {
-        if (!streamVideo) return;
-
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.height = video.videoHeight;
-          canvas.width = video.videoWidth;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          if (window.jsQR) {
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: "dontInvert",
-            });
-
-            if (code && code.data) {
-              cerrarCamaraQR();
-              procesarLecturaQR(code.data);
-              return;
-            }
-          }
+      db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona], function (e) {
+        if (e) {
+          console.error("Error al actualizar:", e.message);
+          return res.status(500).json({ error: e.message });
         }
-        scanInterval = requestAnimationFrame(tick);
-      };
-
-      scanInterval = requestAnimationFrame(tick);
-    }
-
-    function cerrarCamaraQR() {
-      if (scanInterval) {
-        cancelAnimationFrame(scanInterval);
-        scanInterval = null;
-      }
-      if (streamVideo) {
-        streamVideo.getTracks().forEach(track => track.stop());
-        streamVideo = null;
-      }
-      document.getElementById('modal-scanner').classList.add('hidden');
-    }
-
-    async function procesarLecturaQR(enlace) {
-      if (!enlace) return;
-      try {
-        const hash = enlace.trim().split('/').pop().replace('#', '');
-        const res = await fetch(`/api/buscar?q=${encodeURIComponent(hash)}`);
-        const datos = await res.json();
-        
-        if (datos && datos.length > 0) {
-          seleccionarPersona(datos[0]);
-        } else {
-          // Guardamos temporalmente el QR escaneado y pedimos buscar al efectivo
-          qrEscaneadoTemporal = enlace;
-          const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asociarlo:");
-          if (!apellidoBusqueda) return;
-
-          const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}`);
-          const listaEncontrada = await resBusqueda.json();
-
-          if (!listaEncontrada || listaEncontrada.length === 0) {
-            alert('No se encontró ningún efectivo con ese nombre.');
-            return;
-          }
-
-          let personaElegida = listaEncontrada[0];
-          if (listaEncontrada.length > 1) {
-            let opciones = listaEncontrada.map((p, idx) => `${idx + 1}: ${p.nombre_completo || p.nombre} (${p.jerarquia_rol || ''})`).join('\n');
-            let seleccion = prompt(`Se encontraron varios:\n${opciones}\nIngrese el número del efectivo correcto:`);
-            let idxElegido = parseInt(seleccion) - 1;
-            if (listaEncontrada[idxElegido]) {
-              personaElegida = listaEncontrada[idxElegido];
-            }
-          }
-
-          seleccionarPersona(personaElegida);
-          // Habilitamos el botón explícito para confirmar la vinculación
-          document.getElementById('btn-confirmar-qr').classList.remove('hidden');
-        }
-      } catch (err) {
-        console.error("Error al procesar lectura QR:", err);
-      }
-    }
-
-    // FUNCIÓN DEL BOTÓN EXPLÍCITO PARA GUARDAR Y CONFIRMAR VINCULACIÓN
-    async function confirmarYGuardarVinculacion() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Seleccione un efectivo primero.');
-        return;
-      }
-      const enlaceA_Guardar = qrEscaneadoTemporal || personaSeleccionada.credencial_url;
-      if (!enlaceA_Guardar) {
-        alert('No hay ningún código QR pendiente para guardar.');
-        return;
-      }
-
-      const hash = enlaceA_Guardar.trim().split('/').pop().replace('#', '');
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            credencial_url: enlaceA_Guardar,
-            credencial_token: hash
-          })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = enlaceA_Guardar;
-          personaSeleccionada.credencial_token = hash;
-          qrEscaneadoTemporal = null;
-          seleccionarPersona(personaSeleccionada);
-          document.getElementById('btn-confirmar-qr').classList.add('hidden');
-          alert('¡Credencial QR confirmada y guardada exitosamente en la base de datos!');
-        }
-      } catch (err) {
-        console.error("Error al confirmar QR:", err);
-      }
-    }
-
-    async function pegarQRManual() {
-      const enlace = prompt('Pegue el enlace o código QR de la credencial oficial:');
-      if (enlace) procesarLecturaQR(enlace);
-    }
-
-    function mostrarResultadosBusqueda(lista) {
-      const box = document.getElementById('resultados-busqueda');
-      box.innerHTML = '';
-      if (!Array.isArray(lista) || lista.length === 0) {
-        box.innerHTML = '<div class="p-2 text-xs text-slate-400">Sin resultados</div>';
-        box.classList.remove('hidden');
-        return;
-      }
-      lista.forEach(p => {
-        const nom = p.nombre_completo || p.nombre || 'Sin Nombre';
-        const jer = p.jerarquia_rol || p.jerarquia || '';
-        const chp = p.cargo_chapa || p.chapa || '';
-        const doc = p.dni ? `DNI: ${p.dni}` : (chp ? `N° de Legajo: ${chp}` : '');
-
-        const div = document.createElement('div');
-        div.className = 'p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 flex justify-between items-center';
-        div.innerHTML = `<div><strong class="text-xs text-slate-800">${nom}</strong><br><span class="text-[10px] text-slate-500">${jer} ${doc ? '- ' + doc : ''}</span></div><span class="text-[10px] text-blue-600 font-mono">${chp ? 'Leg: ' + chp : ''}</span>`;
-        div.onclick = () => {
-          seleccionarPersona(p);
-          box.classList.add('hidden');
-          document.getElementById('input-buscar').value = '';
-        };
-        box.appendChild(div);
+        res.json({ success: true });
       });
-      box.classList.remove('hidden');
+    });
+  }
+});
+
+// Alta de nuevo integrante
+app.post('/api/personas', (req, res) => {
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
+  
+  if (!nombre_completo) {
+    return res.status(400).json({ error: 'El nombre es obligatorio' });
+  }
+
+  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : (credencial_token || null);
+
+  const sql = `
+    INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  
+  db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
+    if (e) {
+      console.error("Error al crear:", e.message);
+      return res.status(500).json({ error: e.message });
     }
+    res.json({ id: this.lastID, success: true });
+  });
+});
 
-    function seleccionarPersona(p) {
-      personaSeleccionada = p;
-      const nom = p.nombre_completo || p.nombre || 'Personal';
-      const jer = p.jerarquia_rol || p.jerarquia || 'Personal';
-      const chp = p.cargo_chapa || p.chapa || 'S/D';
-      const doc = p.dni || 'S/D';
+// Eliminar persona
+app.delete('/api/personas/:id', (req, res) => {
+  db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
+    if (e) return res.status(500).json({ error: e.message });
+    res.json({ success: true });
+  });
+});
 
-      document.getElementById('persona-nombre').innerText = nom;
-      document.getElementById('persona-sub').innerText = jer;
-      document.getElementById('persona-det').innerText = `DNI: ${doc} | N° de Legajo: ${chp}`;
-      
-      if (p.id) {
-        document.getElementById('btn-editar-persona').classList.remove('hidden');
-      } else {
-        document.getElementById('btn-editar-persona').classList.add('hidden');
-      }
+// Libro de Guardia
+app.get('/api/libro-guardia', (req, res) => {
+  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  db.all(`SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`, [`${fecha}%`], (err, filas) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(filas || []);
+  });
+});
 
-      let enlace = p.credencial_url;
-      if (!enlace && p.credencial_token) {
-        enlace = `https://credenciales.dpd1.ar/publicoQR/${p.credencial_token}`;
-      } else if (!enlace && p.credencial) {
-        enlace = p.credencial;
-      }
+app.post('/api/libro-guardia', (req, res) => {
+  const { puesto, accion, protagonista, detalle, rubro } = req.body;
+  const now = new Date();
+  const hora = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const fechaCompleta = `${now.toISOString().split('T')[0]} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      const btnCred = document.getElementById('btn-credencial');
-      const btnDesvincular = document.getElementById('btn-desvincular-qr');
-      const hashSpan = document.getElementById('persona-hash');
-      const imgFoto = document.getElementById('foto-persona');
+  const sql = `
+    INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 0, 0)
+  `;
 
-      if (enlace) {
-        btnCred.href = enlace;
-        btnCred.classList.remove('hidden');
-        btnDesvincular.classList.remove('hidden');
-        const tokenDisplay = p.credencial_token || enlace.trim().split('/').pop().replace('#', '');
-        hashSpan.innerText = '#' + tokenDisplay.slice(0, 8);
+  db.run(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL'], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ id: this.lastID, success: true, hora });
+  });
+});
 
-        imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
-        imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
-      } else {
-        btnCred.classList.add('hidden');
-        btnDesvincular.classList.add('hidden');
-        hashSpan.innerText = 'Sin Enlace';
-        imgFoto.src = placeholderSvg;
-      }
+app.post('/api/libro-guardia/marcar-enviados', (req, res) => {
+  const { ids } = req.body;
+  if (!ids || ids.length === 0) return res.json({ success: true });
+  const placeholders = ids.map(() => '?').join(',');
+  db.run(`UPDATE libro_guardia SET notificado_wa = 1 WHERE id IN (${placeholders})`, ids, function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
 
-      if (qrEscaneadoTemporal && p.id) {
-        document.getElementById('btn-confirmar-qr').classList.remove('hidden');
-      }
+app.get('/api/fuerza-presente', (req, res) => {
+  const hoy = `${new Date().toISOString().split('T')[0]}%`;
+  db.all(`SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`, [hoy], (err, movimientos) => {
+    let vehiculosAdentro = 4;
+    let plantaAdentro = 8;
+    let cad1Adentro = 1;
+    let cad2Adentro = 1;
+    let cad3Adentro = 1;
 
-      let patente = null;
-      let modelo = null;
+    const estados = {};
+    (movimientos || []).forEach(m => {
+      estados[m.protagonista] = { accion: m.accion, detalle: m.detalle };
+    });
 
-      for (const [clave, valor] of Object.entries(p)) {
-        if (!valor || typeof valor !== 'string') continue;
-        const k = clave.toLowerCase();
-        const v = valor.trim();
-
-        if ((k.includes('patente') || k.includes('dominio')) && v !== '' && v !== 'null') {
-          patente = v;
+    Object.entries(estados).forEach(([persona, data]) => {
+      if (data.accion && data.accion.includes('INGRESO')) {
+        if (data.detalle && (data.detalle.includes('Patente') || data.detalle.includes('Móvil') || data.detalle.includes('rodado'))) {
+          vehiculosAdentro++;
         }
-        if ((k.includes('modelo') || k.includes('marca') || k.includes('rodado') || k.includes('vehiculo')) && v !== '' && v !== 'null') {
-          modelo = v;
-        }
+        if (persona.includes('Cadete 1°') || persona.includes('1° Año')) cad1Adentro++;
+        else if (persona.includes('Cadete 2°') || persona.includes('2° Año')) cad2Adentro++;
+        else if (persona.includes('Cadete 3°') || persona.includes('3° Año')) cad3Adentro++;
+        else plantaAdentro++;
       }
+    });
 
-      personaSeleccionada.patente_detectada = patente;
-      personaSeleccionada.modelo_detectado = modelo;
+    res.json({
+      plantaPresente: plantaAdentro,
+      cad1Presente: cad1Adentro,
+      cad2Presente: cad2Adentro,
+      cad3Presente: cad3Adentro,
+      vehiculosPredio: vehiculosAdentro
+    });
+  });
+});
 
-      if (patente) {
-        document.getElementById('seccion-con-vehiculo').classList.remove('hidden');
-        document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-        document.getElementById('persona-patente').innerText = patente.toUpperCase();
-        document.getElementById('persona-modelo').innerText = modelo || 'Vehículo Registrado';
-      } else {
-        document.getElementById('seccion-con-vehiculo').classList.add('hidden');
-        document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-      }
-    }
+app.get('/api/configuracion/:clave', (req, res) => {
+  db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
+    res.json({ valor: fila ? fila.valor : null });
+  });
+});
 
-    function limpiarSeleccion() {
-      personaSeleccionada = null;
-      qrEscaneadoTemporal = null;
-      document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
-      document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
-      document.getElementById('persona-det').innerText = 'DNI / N° de Legajo';
-      document.getElementById('foto-persona').src = placeholderSvg;
-      document.getElementById('btn-credencial').classList.add('hidden');
-      document.getElementById('btn-desvincular-qr').classList.add('hidden');
-      document.getElementById('btn-editar-persona').classList.add('hidden');
-      document.getElementById('btn-confirmar-qr').classList.add('hidden');
-      document.getElementById('persona-hash').innerText = 'Sin Enlace';
-      document.getElementById('seccion-con-vehiculo').classList.add('hidden');
-      document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-    }
+app.post('/api/configuracion', (req, res) => {
+  const { clave, valor } = req.body;
+  db.run(`INSERT INTO configuracion_guardia (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`, [clave, valor], function (err) {
+    res.json({ success: !err });
+  });
+});
 
-    async function desvincularQrPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) return;
-      if (!confirm("¿Está seguro que desea desvincular este código QR?")) return;
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limpiar_credencial: true })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = null;
-          personaSeleccionada.credencial_token = null;
-          seleccionarPersona(personaSeleccionada);
-          alert('QR desvinculado correctamente.');
-        }
-      } catch (err) {
-        console.error("Error al desvincular QR:", err);
-      }
-    }
-
-    async function cargarLibro() {
-      const fecha = document.getElementById('filtro-fecha').value;
-      try {
-        const res = await fetch(`/api/libro-guardia?fecha=${fecha}`);
-        const datos = await res.json();
-        registrosCargados = Array.isArray(datos) ? datos : [];
-        const tbody = document.getElementById('tabla-guardia');
-        tbody.innerHTML = '';
-        document.getElementById('total-asientos').innerText = registrosCargados.length;
-
-        registrosCargados.forEach(row => {
-          const esIngreso = row.accion && row.accion.includes('INGRESO');
-          const badgeClass = esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
-          const badgeWa = row.notificado_wa === 1 
-            ? '<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i> Enviado</span>'
-            : '<span class="bg-slate-100 text-slate-500 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-clock mr-1"></i> Pendiente</span>';
-
-          tbody.innerHTML += `
-            <tr class="hover:bg-slate-50 transition-colors">
-              <td class="p-2 text-center"><input type="checkbox" class="chk-fila" value="${row.id}" /></td>
-              <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
-              <td class="p-2 text-slate-600">${row.puesto}</td>
-              <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
-              <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
-              <td class="p-2 text-slate-500">${row.detalle}</td>
-              <td class="p-2 text-center">${badgeWa}</td>
-            </tr>
-          `;
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function registrarMovimiento(tipo, modo) {
-      if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
-        return;
-      }
-      const puesto = document.getElementById('sel-puesto').value;
-      let accion = tipo;
-      let detalle = modo;
-
-      const nom = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
-      const jer = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      const pat = personaSeleccionada.patente_detectada || personaSeleccionada.vehiculo_patente || '';
-
-      if (modo.includes('Móvil')) {
-        accion = `VEHÍCULO (${tipo})`;
-        detalle = `${tipo} c/ rodado [Patente: ${pat.toUpperCase() || 'S/D'}]`;
-      }
-
-      const payload = {
-        puesto,
-        accion,
-        protagonista: `${jer} ${nom}`.trim(),
-        detalle,
-        rubro: 'PERSONAL'
-      };
-
-      try {
-        await fetch('/api/libro-guardia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        limpiarSeleccion();
-        cargarLibro();
-        cargarFuerza();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function cargarFuerza() {
-      try {
-        const res = await fetch('/api/fuerza-presente');
-        const d = await res.json();
-        if (d) {
-          document.getElementById('f-planta').innerText = `${d.plantaPresente || 8} / 131`;
-          document.getElementById('f-cad1').innerText = `${d.cad1Presente || 1} / 102`;
-          document.getElementById('f-cad2').innerText = `${d.cad2Presente || 1} / 50`;
-          document.getElementById('f-cad3').innerText = `${d.cad3Presente || 1} / 74`;
-          document.getElementById('f-vehiculos').innerText = d.vehiculosPredio || 4;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function cargarOficialServicio() {
-      try {
-        const res = await fetch('/api/configuracion/oficial_servicio');
-        const d = await res.json();
-        if (d && d.valor) {
-          document.getElementById('txt-oficial-servicio').innerText = d.valor;
-        }
-      } catch (e) {}
-    }
-
-    function toggleTodos(master) {
-      document.querySelectorAll('.chk-fila').forEach(cb => cb.checked = master.checked);
-    }
-
-    async function enviarSeleccionadosWhatsApp() {
-      const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
-      if (checkboxes.length === 0) {
-        alert('Seleccione las filas a enviar.');
-        return;
-      }
-
-      const idsSeleccionados = checkboxes.map(cb => parseInt(cb.value));
-      const filasAEnviar = registrosCargados.filter(r => idsSeleccionados.includes(r.id));
-
-      if (filasAEnviar.length === 0) return;
-
-      const fecha = document.getElementById('filtro-fecha').value;
-      const oficial = document.getElementById('txt-oficial-servicio').innerText;
-      const puestoActivo = document.getElementById('sel-puesto').value;
-
-      let mensaje = `*PARTE DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
-      mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial} | *Puesto:* ${puestoActivo}\n\n`;
-
-      filasAEnviar.forEach((m, idx) => {
-        mensaje += `${idx + 1}. [${m.hora}] *${m.accion}* - ${m.protagonista}\n`;
-        mensaje += `    _${m.detalle}_ (Puesto: ${m.puesto})\n\n`;
-      });
-
-      await fetch('/api/libro-guardia/marcar-enviados', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: idsSeleccionados })
-      });
-
-      cargarLibro();
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
-    }
-
-    // DIRECTORIO FUERZA EFECTIVA CON EDITAR, ELIMINAR Y AGREGAR
-    async function abrirModalFuerzaEfectiva() {
-      try {
-        const res = await fetch('/api/personal-completo');
-        const lista = await res.json();
-        directorioGlobal = Array.isArray(lista) ? lista : [];
-        renderizarDirectorio(directorioGlobal);
-        document.getElementById('modal-fuerza-efectiva').classList.remove('hidden');
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function renderizarDirectorio(lista) {
-      const tbody = document.getElementById('tabla-directorio-body');
-      tbody.innerHTML = '';
-      if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin registros en la base de datos.</td></tr>';
-        return;
-      }
-      lista.forEach(p => {
-        const nom = p.nombre_completo || p.nombre || 'S/D';
-        const jer = p.jerarquia_rol || p.jerarquia || '';
-        const chp = p.cargo_chapa || p.chapa || 'S/D';
-        tbody.innerHTML += `
-          <tr class="hover:bg-slate-50">
-            <td class="p-2 font-bold text-slate-800">${nom}</td>
-            <td class="p-2 text-slate-500">${jer}</td>
-            <td class="p-2 font-mono text-blue-600">${chp}</td>
-            <td class="p-2 text-center space-x-1 whitespace-nowrap">
-              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Seleccionar">Sel.</button>
-              <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Editar"><i class="fa-solid fa-pen"></i></button>
-              <button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    function filtrarDirectorio() {
-      const txt = document.getElementById('filtro-directorio').value.toLowerCase();
-      const filtrados = directorioGlobal.filter(p => {
-        const n = (p.nombre_completo || p.nombre || '').toLowerCase();
-        const j = (p.jerarquia_rol || p.jerarquia || '').toLowerCase();
-        const c = (p.cargo_chapa || p.chapa || '').toLowerCase();
-        return n.includes(txt) || j.includes(txt) || c.includes(txt);
-      });
-      renderizarDirectorio(filtrados);
-    }
-
-    function seleccionarEfectivoDirectorio(p) {
-      seleccionarPersona(p);
-      cerrarModalFuerzaEfectiva();
-    }
-
-    function editarDesdeDirectorio(p) {
-      cerrarModalFuerzaEfectiva();
-      seleccionarPersona(p);
-      abrirModalEditarPersona();
-    }
-
-    async function eliminarEfectivo(id) {
-      if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
-      try {
-        await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        abrirModalFuerzaEfectiva();
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
-
-    function abrirModalCredencial() {
-      if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
-        return;
-      }
-      document.getElementById('input-credencial-url').value = personaSeleccionada.credencial_url || '';
-      document.getElementById('modal-credencial').classList.remove('hidden');
-    }
-
-    function cerrarModalCredencial() {
-      document.getElementById('modal-credencial').classList.add('hidden');
-    }
-
-    async function guardarCredencialPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Debe buscar y seleccionar a un efectivo registrado primero.');
-        return;
-      }
-
-      let val = document.getElementById('input-credencial-url').value.trim();
-      if (!val) return;
-
-      if (!val.startsWith('http')) {
-        val = `https://credenciales.dpd1.ar/publicoQR/${val}`;
-      }
-
-      const hash = val.trim().split('/').pop().replace('#', '');
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            credencial_url: val,
-            credencial_token: hash
-          })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = val;
-          personaSeleccionada.credencial_token = hash;
-          seleccionarPersona(personaSeleccionada);
-          cerrarModalCredencial();
-          alert('¡Credencial vinculada y guardada correctamente!');
-        }
-      } catch (err) {
-        console.error("Error al guardar credencial:", err);
-      }
-    }
-
-    function abrirModalEditarPersona() {
-      if (!personaSeleccionada) return;
-      document.getElementById('edit-dni').value = personaSeleccionada.dni || '';
-      document.getElementById('edit-chapa').value = personaSeleccionada.cargo_chapa || personaSeleccionada.chapa || '';
-      document.getElementById('edit-nombre').value = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
-      document.getElementById('edit-jerarquia').value = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      document.getElementById('modal-editar-persona').classList.remove('hidden');
-    }
-    function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
-
-    async function guardarEdicionPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Seleccione un efectivo primero.');
-        return;
-      }
-      const dni = document.getElementById('edit-dni').value.trim();
-      const cargo_chapa = document.getElementById('edit-chapa').value.trim();
-      const nombre_completo = document.getElementById('edit-nombre').value.trim();
-      const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.dni = dni;
-          personaSeleccionada.cargo_chapa = cargo_chapa;
-          personaSeleccionada.nombre_completo = nombre_completo;
-          personaSeleccionada.jerarquia_rol = jerarquia_rol;
-
-          seleccionarPersona(personaSeleccionada);
-          cerrarModalEditarPersona();
-          alert('Datos personales actualizados y guardados con éxito.');
-        }
-      } catch (err) {
-        console.error("Error al guardar edición:", err);
-      }
-    }
-
-    function abrirModalVehiculo() {
-      if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
-        return;
-      }
-      document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.modelo_detectado || '';
-      document.getElementById('vehiculo-patente-input').value = personaSeleccionada.patente_detectada || '';
-      document.getElementById('modal-vehiculo').classList.remove('hidden');
-    }
-    function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
-    
-    async function guardarVehiculoPersona() {
-      const modelo = document.getElementById('vehiculo-modelo-input').value.trim();
-      const patente = document.getElementById('vehiculo-patente-input').value.trim().toUpperCase();
-
-      if (!personaSeleccionada.id) {
-        const resAlta = await fetch('/api/personas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dni: personaSeleccionada.dni || 'S/D',
-            nombre_completo: personaSeleccionada.nombre_completo || 'Personal',
-            jerarquia_rol: personaSeleccionada.jerarquia_rol || 'Personal',
-            cargo_chapa: personaSeleccionada.cargo_chapa || 'S/D',
-            credencial_url: personaSeleccionada.credencial_url,
-            vehiculo_modelo: modelo,
-            vehiculo_patente: patente
-          })
-        });
-        const dataAlta = await resAlta.json();
-        if (dataAlta.success) personaSeleccionada.id = dataAlta.id;
-      } else {
-        await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
-        });
-      }
-
-      personaSeleccionada.patente_detectada = patente;
-      personaSeleccionada.modelo_detectado = modelo;
-      seleccionarPersona(personaSeleccionada);
-      cerrarModalVehiculo();
-      alert('Vehículo guardado correctamente.');
-    }
-
-    async function abrirModalListaVehiculos() {
-      try {
-        const res = await fetch('/api/vehiculos');
-        const lista = await res.json();
-        const tbody = document.getElementById('tabla-vehiculos-body');
-        tbody.innerHTML = '';
-
-        if (!lista || lista.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No se encontraron vehículos registrados.</td></tr>';
-        } else {
-          lista.forEach(v => {
-            tbody.innerHTML += `
-              <tr class="hover:bg-slate-50">
-                <td class="p-2 font-bold text-slate-800">${v.titular}</td>
-                <td class="p-2 text-slate-500">${v.jerarquia}</td>
-                <td class="p-2 text-slate-700">${v.modelo}</td>
-                <td class="p-2 font-mono font-bold text-blue-600">${v.patente}</td>
-              </tr>
-            `;
-          });
-        }
-        document.getElementById('modal-lista-vehiculos').classList.remove('hidden');
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    function cerrarModalListaVehiculos() { document.getElementById('modal-lista-vehiculos').classList.add('hidden'); }
-
-    function abrirModalOficial() {
-      document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
-      document.getElementById('modal-oficial').classList.remove('hidden');
-    }
-    function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
-    async function guardarOficialServicio() {
-      const val = document.getElementById('input-oficial-nombre').value.trim();
-      if (!val) return;
-      await fetch('/api/configuracion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clave: 'oficial_servicio', valor: val })
-      });
-      document.getElementById('txt-oficial-servicio').innerText = val;
-      cerrarModalOficial();
-    }
-
-    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
-    function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
-    async function guardarNuevoIntegrante() {
-      const dni = document.getElementById('nuevo-dni').value.trim();
-      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
-      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
-      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
-      const credencial_url = document.getElementById('nuevo-credencial').value.trim();
-
-      if (!nombre_completo) {
-        alert('Ingrese el nombre completo.');
-        return;
-      }
-      const respuesta = await fetch('/api/personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
-      });
-      const resultado = await respuesta.json();
-      if (resultado.success) {
-        cerrarModalNuevo();
-        alert('Integrante dado de alta con éxito.');
-        abrirModalFuerzaEfectiva();
-      }
-    }
-  </script>
-</body>
-</html>
+app.listen(PORT, () => {
+  console.log(`Servidor activo en puerto ${PORT}`);
+});

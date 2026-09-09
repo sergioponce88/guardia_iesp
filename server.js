@@ -104,20 +104,18 @@ app.get('/api/buscar', (req, res) => {
       const campos = cols.map(c => c.name).filter(c => !['id', 'created_at'].includes(c));
       const where = campos.map(c => `CAST(${c} AS TEXT) LIKE ?`).join(' OR ');
       
-      // Permitir buscar por palabras separadas (ej: "aldana michel" -> "%aldana%", "%michel%")
       const palabras = q.split(/\s+/);
       let sqlFinal = '';
       let paramsFinal = [];
 
       if (palabras.length > 1) {
-        // Si busca con espacio, exigimos que coincida con varias partes
         const subWheres = palabras.map(() => `(${where})`).join(' AND ');
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 15`;
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 50`;
         palabras.forEach(p => {
           campos.forEach(() => paramsFinal.push(`%${p}%`));
         });
       } else {
-        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 15`;
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 50`;
         paramsFinal = Array(campos.length).fill(`%${q}%`);
       }
 
@@ -176,35 +174,33 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// Actualizar persona o vincular credencial por ID
+// Actualizar datos de persona o vehículo por ID
 app.put('/api/personas/:id', (req, res) => {
-  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token } = req.body;
+  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol } = req.body;
   
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
     
-    // Asegurar columnas de credencial y vehículo
-    db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_patente TEXT`, () => {});
-    db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_modelo TEXT`, () => {});
-    db.run(`ALTER TABLE ${tabla} ADD COLUMN credencial_url TEXT`, () => {});
-    db.run(`ALTER TABLE ${tabla} ADD COLUMN credencial_token TEXT`, () => {
-      let updates = [];
-      let params = [];
+    let updates = [];
+    let params = [];
 
-      if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
-      if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
-      if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
-      if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
+    if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
+    if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
+    if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
+    if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
+    if (dni !== undefined) { updates.push("dni = ?"); params.push(dni); }
+    if (cargo_chapa !== undefined) { updates.push("cargo_chapa = ?"); params.push(cargo_chapa); }
+    if (nombre_completo !== undefined) { updates.push("nombre_completo = ?"); params.push(nombre_completo); }
+    if (jerarquia_rol !== undefined) { updates.push("jerarquia_rol = ?"); params.push(jerarquia_rol); }
 
-      if (updates.length === 0) return res.json({ success: true });
+    if (updates.length === 0) return res.json({ success: true });
 
-      params.push(req.params.id);
-      const sql = `UPDATE ${tabla} SET ${updates.join(', ')} WHERE id = ?`;
-      
-      db.run(sql, params, function (e) {
-        if (e) return res.status(500).json({ error: e.message });
-        res.json({ success: true, changes: this.changes });
-      });
+    params.push(req.params.id);
+    const sql = `UPDATE ${tabla} SET ${updates.join(', ')} WHERE id = ?`;
+    
+    db.run(sql, params, function (e) {
+      if (e) return res.status(500).json({ error: e.message });
+      res.json({ success: true, changes: this.changes });
     });
   });
 });
@@ -304,7 +300,7 @@ app.get('/api/fuerza-presente', (req, res) => {
   });
 });
 
-// Configuración de Oficial de Servicio
+// Configuración
 app.get('/api/configuracion/:clave', (req, res) => {
   db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
     res.json({ valor: fila ? fila.valor : null });

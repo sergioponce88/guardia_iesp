@@ -11,17 +11,31 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Asegurar directorio persistente
 const dataDir = path.resolve(__dirname, 'data');
 if (!fs.existsSync(dataDir)){
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'guardia_iesp.db');
+// Comprobación de recuperación: Si la DB vieja existe en la raíz, la movemos a data/ para no perder nada
+const oldDbPath = path.resolve(__dirname, 'guardia_iesp.db');
+const newDbPath = path.join(dataDir, 'guardia_iesp.db');
+
+if (fs.existsSync(oldDbPath) && !fs.existsSync(newDbPath)) {
+  try {
+    fs.copyFileSync(oldDbPath, newDbPath);
+    console.log('Base de datos anterior restaurada y migrada exitosamente a la carpeta persistente.');
+  } catch (e) {
+    console.error('Error al migrar la base de datos:', e.message);
+  }
+}
+
+const dbPath = fs.existsSync(newDbPath) ? newDbPath : oldDbPath;
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error DB:', err.message);
   } else {
-    console.log('Base de datos conectada en:', dbPath);
+    console.log('Base de datos activa en:', dbPath);
   }
 });
 
@@ -125,7 +139,6 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// ACTUALIZACIÓN DIRECTA Y FORZADA POR ID (SIN PASOS INTERMEDIOS QUE FALLEN)
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;
@@ -137,9 +150,7 @@ app.put('/api/personas/:id', (req, res) => {
     });
   } else {
     db.get(`SELECT * FROM personas WHERE id = ?`, [idPersona], (err, actual) => {
-      if (err || !actual) {
-        return res.status(404).json({ error: 'Persona no encontrada en la base de datos' });
-      }
+      if (err || !actual) return res.status(404).json({ error: 'Persona no encontrada' });
 
       let tokenCalculado = credencial_token !== undefined ? credencial_token : actual.credencial_token;
       if (credencial_url) {
@@ -163,7 +174,7 @@ app.put('/api/personas/:id', (req, res) => {
 
       db.run(sql, [d, n, j, c, u, t, m, p, idPersona], function (e) {
         if (e) {
-          console.error("Error SQL UPDATE:", e.message);
+          console.error("Error al actualizar:", e.message);
           return res.status(500).json({ error: e.message });
         }
         res.json({ success: true });

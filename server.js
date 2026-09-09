@@ -86,7 +86,7 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-// Búsqueda inteligente universal
+// Búsqueda inteligente amplia y tolerante
 app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -103,9 +103,25 @@ app.get('/api/buscar', (req, res) => {
 
       const campos = cols.map(c => c.name).filter(c => !['id', 'created_at'].includes(c));
       const where = campos.map(c => `CAST(${c} AS TEXT) LIKE ?`).join(' OR ');
-      const params = Array(campos.length).fill(`%${q}%`);
+      
+      // Permitir buscar por palabras separadas (ej: "aldana michel" -> "%aldana%", "%michel%")
+      const palabras = q.split(/\s+/);
+      let sqlFinal = '';
+      let paramsFinal = [];
 
-      db.all(`SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 15`, params, (errQuery, filas) => {
+      if (palabras.length > 1) {
+        // Si busca con espacio, exigimos que coincida con varias partes
+        const subWheres = palabras.map(() => `(${where})`).join(' AND ');
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${subWheres} LIMIT 15`;
+        palabras.forEach(p => {
+          campos.forEach(() => paramsFinal.push(`%${p}%`));
+        });
+      } else {
+        sqlFinal = `SELECT * FROM ${nombreTabla} WHERE ${where} LIMIT 15`;
+        paramsFinal = Array(campos.length).fill(`%${q}%`);
+      }
+
+      db.all(sqlFinal, paramsFinal, (errQuery, filas) => {
         if (errQuery) return res.json([]);
         res.json(filas || []);
       });
@@ -160,19 +176,34 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// Actualizar vehículo de persona
+// Actualizar persona o vincular credencial por ID
 app.put('/api/personas/:id', (req, res) => {
-  const { vehiculo_modelo, vehiculo_patente } = req.body;
+  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token } = req.body;
   
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
     
+    // Asegurar columnas de credencial y vehículo
     db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_patente TEXT`, () => {});
-    db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_modelo TEXT`, () => {
-      const sql = `UPDATE ${tabla} SET vehiculo_modelo = ?, vehiculo_patente = ? WHERE id = ?`;
-      db.run(sql, [vehiculo_modelo, vehiculo_patente, req.params.id], function (e) {
+    db.run(`ALTER TABLE ${tabla} ADD COLUMN vehiculo_modelo TEXT`, () => {});
+    db.run(`ALTER TABLE ${tabla} ADD COLUMN credencial_url TEXT`, () => {});
+    db.run(`ALTER TABLE ${tabla} ADD COLUMN credencial_token TEXT`, () => {
+      let updates = [];
+      let params = [];
+
+      if (vehiculo_modelo !== undefined) { updates.push("vehiculo_modelo = ?"); params.push(vehiculo_modelo); }
+      if (vehiculo_patente !== undefined) { updates.push("vehiculo_patente = ?"); params.push(vehiculo_patente); }
+      if (credencial_url !== undefined) { updates.push("credencial_url = ?"); params.push(credencial_url); }
+      if (credencial_token !== undefined) { updates.push("credencial_token = ?"); params.push(credencial_token); }
+
+      if (updates.length === 0) return res.json({ success: true });
+
+      params.push(req.params.id);
+      const sql = `UPDATE ${tabla} SET ${updates.join(', ')} WHERE id = ?`;
+      
+      db.run(sql, params, function (e) {
         if (e) return res.status(500).json({ error: e.message });
-        res.json({ success: true });
+        res.json({ success: true, changes: this.changes });
       });
     });
   });
@@ -180,16 +211,16 @@ app.put('/api/personas/:id', (req, res) => {
 
 // Alta de nueva persona
 app.post('/api/personas', (req, res) => {
-  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente } = req.body;
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
   db.all(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`, [], (err, tablas) => {
     const tabla = tablas.find(t => ['personas', 'personal', 'cadetes'].includes(t.name.toLowerCase()))?.name || 'personas';
     
     const sql = `
-      INSERT INTO ${tabla} (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO ${tabla} (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    db.run(sql, [dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, vehiculo_modelo, vehiculo_patente], function (e) {
+    db.run(sql, [dni || 'S/D', nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente], function (e) {
       if (e) return res.status(500).json({ error: e.message });
       res.json({ id: this.lastID, success: true });
     });

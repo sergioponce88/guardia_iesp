@@ -1105,48 +1105,74 @@
     }
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
-    // FUNCIÓN DE GUARDADO POR DNI DIRECTO (SOLUCIÓN DEFINITIVA)
+    // FUNCIÓN ESPÍA DE GUARDADO CON CONSOLA ACTIVA
     async function guardarEdicionPersona() {
       const dniInput = document.getElementById('edit-dni').value.trim();
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
       const nombre_completo = document.getElementById('edit-nombre').value.trim().toUpperCase();
       const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
 
+      console.log("🕵️ [ESPIA] Iniciando guardado para DNI:", dniInput);
+
       if (!dniInput) {
-        alert('El DNI es obligatorio.');
+        alert('🕵️ [ESPIA] Error: El DNI está vacío.');
         return;
       }
 
       try {
-        const resBusq = await fetch(`/api/buscar?q=${encodeURIComponent(dniInput)}`);
+        const urlBusqueda = `/api/buscar?q=${encodeURIComponent(dniInput)}`;
+        console.log("🕵️ [ESPIA] Consultando URL:", urlBusqueda);
+        
+        const resBusq = await fetch(urlBusqueda);
         const encontrados = await resBusq.json();
+        console.log("🕵️ [ESPIA] Resultado de búsqueda en DB:", encontrados);
 
         if (!encontrados || encontrados.length === 0) {
-          alert('No se encontró el DNI en la base de datos para actualizar.');
+          alert('🕵️ [ESPIA] ALERTA: No se encontró ningún registro con el DNI ' + dniInput + ' en la base de datos.');
           return;
         }
 
         const idReal = encontrados[0].id;
+        console.log("🕵️ [ESPIA] ID real obtenido:", idReal);
+
+        const payload = { dni: dniInput, cargo_chapa, nombre_completo, jerarquia_rol };
+        console.log("🕵️ [ESPIA] Enviando payload PUT:", payload);
 
         const respuesta = await fetch(`/api/personas/${idReal}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dni: dniInput, cargo_chapa, nombre_completo, jerarquia_rol })
+          body: JSON.stringify(payload)
         });
 
-        const resultado = await respuesta.json();
+        console.log("🕵️ [ESPIA] Código de estado HTTP recibido:", respuesta.status);
+        const textoRespuesta = await respuesta.text();
+        console.log("🕵️ [ESPIA] Texto crudo recibido del servidor:", textoRespuesta);
+
+        let resultado;
+        try {
+          resultado = JSON.parse(textoRespuesta);
+        } catch (e) {
+          console.error("🕵️ [ESPIA] El servidor NO devolvió un JSON válido:", textoRespuesta);
+          alert('🕵️ [ESPIA] Error crítico del servidor (ver consola F12)');
+          return;
+        }
+
         if (resultado.success) {
+          console.log("🕵️ [ESPIA] ¡Guardado exitoso confirmado por el servidor!");
           cerrarModalEditarPersona();
-          alert('¡Guardado con éxito!');
+          alert('¡Guardado exitoso!');
+          
           const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(dniInput)}`);
           const listaFresca = await resFresca.json();
           if (listaFresca.length > 0) seleccionarPersona(listaFresca[0]);
         } else {
-          alert('El servidor rechazó la actualización.');
+          console.error("🕵️ [ESPIA] El servidor rechazó el guardado:", resultado);
+          alert('🕵️ [ESPIA] El servidor rechazó la actualización: ' + (resultado.error || 'Desconocido'));
         }
+
       } catch (err) {
-        console.error("Error al guardar edición:", err);
-        alert('Error de red al intentar guardar.');
+        console.error("🕵️ [ESPIA] Excepción de red atrapada:", err);
+        alert('🕵️ [ESPIA] Excepción de red: ' + err.message);
       }
     }
 

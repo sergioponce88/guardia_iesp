@@ -10,16 +10,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Base de datos persistente en la raíz del proyecto
 const dbPath = path.join(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error al conectar con la base de datos:', err.message);
   } else {
-    console.log('Conectado exitosamente a la base de datos');
+    console.log('Conectado exitosamente a guardia_iesp.db');
   }
 });
 
-// Estructuras base seguras y garantizadas
+// Estructuras de tablas garantizadas
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -60,6 +61,7 @@ db.serialize(() => {
   `);
 });
 
+// Proxy de foto oficial DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -98,13 +100,15 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
+// Obtener todo el personal ordenado por ID descendiente para ver los nuevos arriba
 app.get('/api/personal-completo', (req, res) => {
-  db.all(`SELECT * FROM personas ORDER BY id ASC`, [], (e, filas) => {
+  db.all(`SELECT * FROM personas ORDER BY id DESC`, [], (e, filas) => {
     if (e) return res.json([]);
     res.json(filas || []);
   });
 });
 
+// Búsqueda en la tabla personas
 app.get('/api/buscar', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
@@ -121,6 +125,7 @@ app.get('/api/buscar', (req, res) => {
   });
 });
 
+// Listado de vehículos registrados
 app.get('/api/vehiculos', (req, res) => {
   db.all(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`, [], (err, filas) => {
     if (err) return res.json([]);
@@ -128,6 +133,7 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
+// Actualizar persona por ID
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   
@@ -161,21 +167,31 @@ app.put('/api/personas/:id', (req, res) => {
   }
 });
 
+// ALTA DE NUEVO EFECTIVO (Guardado garantizado)
 app.post('/api/personas', (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
-  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : null;
+  if (!nombre_completo) {
+    return res.status(400).json({ error: 'El nombre completo es obligatorio' });
+  }
+
+  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : (credencial_token || null);
 
   const sql = `
     INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  db.run(sql, [dni || 'S/D', nombre_completo, jerarquia_rol, cargo_chapa, credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
-    if (e) return res.status(500).json({ error: e.message });
+  
+  db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
+    if (e) {
+      console.error("Error al insertar persona:", e.message);
+      return res.status(500).json({ error: e.message });
+    }
     res.json({ id: this.lastID, success: true });
   });
 });
 
+// Eliminar persona por ID
 app.delete('/api/personas/:id', (req, res) => {
   db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
     if (e) return res.status(500).json({ error: e.message });
@@ -183,6 +199,7 @@ app.delete('/api/personas/:id', (req, res) => {
   });
 });
 
+// Libro de Guardia
 app.get('/api/libro-guardia', (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;

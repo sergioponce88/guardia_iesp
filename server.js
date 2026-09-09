@@ -19,9 +19,9 @@ if (!fs.existsSync(dataDir)){
 const dbPath = path.join(dataDir, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('Error crítico DB:', err.message);
+    console.error('Error DB:', err.message);
   } else {
-    console.log('Base de datos conectada en persistente:', dbPath);
+    console.log('Base de datos conectada en:', dbPath);
   }
 });
 
@@ -108,11 +108,11 @@ app.get('/api/buscar', (req, res) => {
 
   const sql = `
     SELECT * FROM personas 
-    WHERE dni LIKE ? OR nombre_completo LIKE ? OR jerarquia_rol LIKE ? OR cargo_chapa LIKE ? OR credencial_token LIKE ?
+    WHERE id = ? OR dni LIKE ? OR nombre_completo LIKE ? OR jerarquia_rol LIKE ? OR cargo_chapa LIKE ? OR credencial_token LIKE ?
     LIMIT 100
   `;
   const param = `%${q}%`;
-  db.all(sql, [param, param, param, param, param], (err, filas) => {
+  db.all(sql, [q, param, param, param, param, param], (err, filas) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(filas || []);
   });
@@ -125,6 +125,7 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
+// ACTUALIZACIÓN DIRECTA Y FORZADA POR ID (SIN PASOS INTERMEDIOS QUE FALLEN)
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;
@@ -136,20 +137,23 @@ app.put('/api/personas/:id', (req, res) => {
     });
   } else {
     db.get(`SELECT * FROM personas WHERE id = ?`, [idPersona], (err, actual) => {
-      if (err || !actual) return res.status(404).json({ error: 'Persona no encontrada' });
+      if (err || !actual) {
+        return res.status(404).json({ error: 'Persona no encontrada en la base de datos' });
+      }
 
       let tokenCalculado = credencial_token !== undefined ? credencial_token : actual.credencial_token;
       if (credencial_url) {
         tokenCalculado = credencial_url.trim().split('/').pop().replace('#', '');
       }
 
-      const nuevoDni = dni !== undefined ? dni : actual.dni;
-      const nuevoNombre = nombre_completo !== undefined ? nombre_completo.toUpperCase() : actual.nombre_completo;
-      const nuevaJerarquia = jerarquia_rol !== undefined ? jerarquia_rol : actual.jerarquia_rol;
-      const nuevoChapa = cargo_chapa !== undefined ? cargo_chapa : actual.cargo_chapa;
-      const nuevaCredUrl = credencial_url !== undefined ? credencial_url : actual.credencial_url;
-      const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
-      const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
+      const d = dni !== undefined ? dni : actual.dni;
+      const n = nombre_completo !== undefined ? nombre_completo.toUpperCase() : actual.nombre_completo;
+      const j = jerarquia_rol !== undefined ? jerarquia_rol : actual.jerarquia_rol;
+      const c = cargo_chapa !== undefined ? cargo_chapa : actual.cargo_chapa;
+      const u = credencial_url !== undefined ? credencial_url : actual.credencial_url;
+      const t = tokenCalculado;
+      const m = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+      const p = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
 
       const sql = `
         UPDATE personas 
@@ -157,9 +161,9 @@ app.put('/api/personas/:id', (req, res) => {
         WHERE id = ?
       `;
 
-      db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, tokenCalculado, nuevoModelo, nuevaPatente, idPersona], function (e) {
+      db.run(sql, [d, n, j, c, u, t, m, p, idPersona], function (e) {
         if (e) {
-          console.error("Error al actualizar:", e.message);
+          console.error("Error SQL UPDATE:", e.message);
           return res.status(500).json({ error: e.message });
         }
         res.json({ success: true });
@@ -184,7 +188,6 @@ app.post('/api/personas', (req, res) => {
   
   db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
     if (e) {
-      console.error("Error al crear:", e.message);
       return res.status(500).json({ error: e.message });
     }
     res.json({ id: this.lastID, success: true });

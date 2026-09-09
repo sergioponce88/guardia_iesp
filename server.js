@@ -19,7 +19,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Estructuras de tablas garantizadas
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -60,7 +59,6 @@ db.serialize(() => {
   `);
 });
 
-// Proxy de foto oficial DPDT
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -129,7 +127,6 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// ACTUALIZAR PERSONA / DATOS / QR (Garantizado)
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;
@@ -140,7 +137,6 @@ app.put('/api/personas/:id', (req, res) => {
       res.json({ success: true });
     });
   } else {
-    // Si viene una nueva URL de credencial, extraemos automáticamente el token/hash
     let tokenCalculado = credencial_token;
     if (credencial_url && !tokenCalculado) {
       tokenCalculado = credencial_url.trim().split('/').pop().replace('#', '');
@@ -165,10 +161,7 @@ app.put('/api/personas/:id', (req, res) => {
       `;
 
       db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona], function (e) {
-        if (e) {
-          console.error("Error al actualizar:", e.message);
-          return res.status(500).json({ error: e.message });
-        }
+        if (e) return res.status(500).json({ error: e.message });
         res.json({ success: true });
       });
     });

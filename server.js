@@ -10,17 +10,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Conexión robusta a SQLite asegurando ruta absoluta en disco
 const dbPath = path.resolve(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('CRITICAL ERROR DB:', err.message);
+    console.error('Error al conectar con la base de datos:', err.message);
   } else {
-    console.log('Base de datos conectada en:', dbPath);
+    console.log('Conectado exitosamente a:', dbPath);
   }
 });
 
-// Inicialización estricta de tablas
+// Estructuras de tablas garantizadas
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -61,7 +60,7 @@ db.serialize(() => {
   `);
 });
 
-// Proxy de fotos oficiales
+// Proxy de foto oficial
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL requerida');
@@ -92,7 +91,7 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-// Obtener personal
+// Obtener todo el personal ordenado
 app.get('/api/personal-completo', (req, res) => {
   db.all(`SELECT * FROM personas ORDER BY id DESC`, [], (e, filas) => {
     if (e) return res.status(500).json({ error: e.message });
@@ -125,7 +124,7 @@ app.get('/api/vehiculos', (req, res) => {
   });
 });
 
-// ACTUALIZACIÓN DIRECTA Y SEGURA POR ID (Edición y QR)
+// RUTA PUT CRÍTICA: Actualización segura por ID para guardar datos editados y QR
 app.put('/api/personas/:id', (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;
@@ -161,7 +160,7 @@ app.put('/api/personas/:id', (req, res) => {
 
       db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona], function (e) {
         if (e) {
-          console.error("Error al actualizar persona:", e.message);
+          console.error("Error al actualizar:", e.message);
           return res.status(500).json({ error: e.message });
         }
         res.json({ success: true });
@@ -170,7 +169,7 @@ app.put('/api/personas/:id', (req, res) => {
   }
 });
 
-// ALTA DE NUEVO EFECTIVO
+// Alta de nuevo integrante
 app.post('/api/personas', (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
@@ -187,14 +186,14 @@ app.post('/api/personas', (req, res) => {
   
   db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
     if (e) {
-      console.error("Error al crear persona:", e.message);
+      console.error("Error al crear:", e.message);
       return res.status(500).json({ error: e.message });
     }
     res.json({ id: this.lastID, success: true });
   });
 });
 
-// ELIMINAR PERSONA
+// Eliminar persona
 app.delete('/api/personas/:id', (req, res) => {
   db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
     if (e) return res.status(500).json({ error: e.message });

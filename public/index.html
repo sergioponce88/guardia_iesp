@@ -1035,10 +1035,20 @@
     async function eliminarEfectivo(id) {
       if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
       try {
-        await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        abrirModalFuerzaEfectiva();
+        const res = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+        const resultado = await res.json();
+        
+        if (resultado.success) {
+          alert('Efectivo eliminado correctamente.');
+          const resDirectorio = await fetch(`/api/personal-completo?_=${Date.now()}`);
+          directorioGlobal = await resDirectorio.json();
+          renderizarDirectorio(directorioGlobal);
+          cargarTodo();
+        } else {
+          alert('No se pudo eliminar el registro.');
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Error al eliminar:", err);
       }
     }
 
@@ -1246,6 +1256,7 @@
       cerrarModalOficial();
     }
 
+    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
     function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
     function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
     async function guardarNuevoIntegrante() {

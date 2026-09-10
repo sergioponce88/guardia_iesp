@@ -20,7 +20,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Creación de tablas y auto-migración de columnas faltantes para evitar errores
+// Inicialización y garantía total de columnas en la tabla personas
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -34,12 +34,14 @@ db.serialize(() => {
       vehiculo_modelo TEXT,
       vehiculo_patente TEXT
     )
-  `, () => {
-    // Asegurar que las columnas existan aunque la tabla sea vieja
-    db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`, () => {});
-    db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`, () => {});
-    db.run(`ALTER TABLE personas ADD COLUMN credencial_url TEXT`, () => {});
-    db.run(`ALTER TABLE personas ADD COLUMN credencial_token TEXT`, () => {});
+  `, (err) => {
+    if (!err) {
+      // Verificamos e insertamos las columnas de manera segura si la tabla es antigua
+      db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`, () => {});
+      db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`, () => {});
+      db.run(`ALTER TABLE personas ADD COLUMN credencial_url TEXT`, () => {});
+      db.run(`ALTER TABLE personas ADD COLUMN credencial_token TEXT`, () => {});
+    }
   });
 
   db.run(`

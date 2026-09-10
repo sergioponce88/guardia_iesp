@@ -512,7 +512,8 @@
           return;
         }
         try {
-          const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}`);
+          // DESTRUCTOR DE CACHÉ AGREGADO AQUÍ
+          const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}&_=${Date.now()}`);
           const datos = await res.json();
           mostrarResultadosBusqueda(datos);
         } catch (err) {
@@ -611,7 +612,7 @@
       if (!enlace) return;
       try {
         const hash = enlace.trim().split('/').pop().replace('#', '');
-        const res = await fetch(`/api/buscar?q=${encodeURIComponent(hash)}`);
+        const res = await fetch(`/api/buscar?q=${encodeURIComponent(hash)}&_=${Date.now()}`);
         const datos = await res.json();
         
         if (datos && datos.length > 0) {
@@ -621,7 +622,7 @@
           const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asociarlo:");
           if (!apellidoBusqueda) return;
 
-          const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}`);
+          const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}&_=${Date.now()}`);
           const listaEncontrada = await resBusqueda.json();
 
           if (!listaEncontrada || listaEncontrada.length === 0) {
@@ -837,7 +838,7 @@
     async function cargarLibro() {
       const fecha = document.getElementById('filtro-fecha').value;
       try {
-        const res = await fetch(`/api/libro-guardia?fecha=${fecha}`);
+        const res = await fetch(`/api/libro-guardia?fecha=${fecha}&_=${Date.now()}`);
         const datos = await res.json();
         registrosCargados = Array.isArray(datos) ? datos : [];
         const tbody = document.getElementById('tabla-guardia');
@@ -910,7 +911,7 @@
 
     async function cargarFuerza() {
       try {
-        const res = await fetch('/api/fuerza-presente');
+        const res = await fetch(`/api/fuerza-presente?_=${Date.now()}`);
         const d = await res.json();
         if (d) {
           document.getElementById('f-planta').innerText = `${d.plantaPresente || 8} / 131`;
@@ -926,7 +927,7 @@
 
     async function cargarOficialServicio() {
       try {
-        const res = await fetch('/api/configuracion/oficial_servicio');
+        const res = await fetch(`/api/configuracion/oficial_servicio?_=${Date.now()}`);
         const d = await res.json();
         if (d && d.valor) {
           document.getElementById('txt-oficial-servicio').innerText = d.valor;
@@ -974,7 +975,7 @@
 
     async function abrirModalFuerzaEfectiva() {
       try {
-        const res = await fetch('/api/personal-completo');
+        const res = await fetch(`/api/personal-completo?_=${Date.now()}`);
         const lista = await res.json();
         directorioGlobal = Array.isArray(lista) ? lista : [];
         renderizarDirectorio(directorioGlobal);
@@ -1105,7 +1106,7 @@
     }
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
-    // FUNCIÓN DE GUARDADO LIBRE (ACTUALIZA DIRECTO POR ID SIN VALIDACIONES DE DNI)
+    // GUARDADO DIRECTO + DESTRUCTOR DE CACHÉ INCLUIDO
     async function guardarEdicionPersona() {
       const dni = document.getElementById('edit-dni').value.trim();
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
@@ -1142,7 +1143,8 @@
           
           const idBuscado = idReal || resultado.id;
           if (idBuscado) {
-            const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(idBuscado)}`);
+            // Buscamos lo recién actualizado SIN CACHÉ
+            const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(idBuscado)}&_=${Date.now()}`);
             const listaFresca = await resFresca.json();
             if (listaFresca.length > 0) seleccionarPersona(listaFresca[0]);
           }
@@ -1203,7 +1205,7 @@
 
     async function abrirModalListaVehiculos() {
       try {
-        const res = await fetch('/api/vehiculos');
+        const res = await fetch(`/api/vehiculos?_=${Date.now()}`);
         const lista = await res.json();
         const tbody = document.getElementById('tabla-vehiculos-body');
         tbody.innerHTML = '';

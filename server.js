@@ -20,7 +20,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Inicialización y garantía total de columnas en la tabla personas
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -36,7 +35,6 @@ db.serialize(() => {
     )
   `, (err) => {
     if (!err) {
-      // Verificamos e insertamos las columnas de manera segura si la tabla es antigua
       db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`, () => {});
       db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`, () => {});
       db.run(`ALTER TABLE personas ADD COLUMN credencial_url TEXT`, () => {});
@@ -200,9 +198,17 @@ app.post('/api/personas', (req, res) => {
   });
 });
 
+// RUTA DELETE BLINDADA PARA ASEGURAR EL BORRADO REAL
 app.delete('/api/personas/:id', (req, res) => {
-  db.run(`DELETE FROM personas WHERE id = ?`, [req.params.id], function (e) {
-    if (e) return res.status(500).json({ error: e.message });
+  const idPersona = req.params.id;
+  console.log("Servidor recibiendo orden de eliminar ID:", idPersona);
+
+  db.run(`DELETE FROM personas WHERE id = ?`, [idPersona], function (e) {
+    if (e) {
+      console.error("Error SQLite al borrar:", e.message);
+      return res.status(500).json({ success: false, error: e.message });
+    }
+    console.log(`Registro con ID ${idPersona} borrado de la base de datos con éxito.`);
     res.json({ success: true });
   });
 });

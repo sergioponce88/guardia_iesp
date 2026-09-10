@@ -514,7 +514,14 @@
         try {
           const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}&_=${Date.now()}`);
           const datos = await res.json();
-          mostrarResultadosBusqueda(datos);
+          
+          // Filtro estricto cruzado con la base de datos viva para evitar mostrar borrados
+          const resDir = await fetch(`/api/personal-completo?_=${Date.now()}`);
+          const directorioActual = await resDir.json();
+          const idsValidos = directorioActual.map(p => p.id);
+          const datosValidos = datos.filter(p => idsValidos.includes(p.id));
+
+          mostrarResultadosBusqueda(datosValidos);
         } catch (err) {
           console.error(err);
         }
@@ -1032,40 +1039,30 @@
       abrirModalEditarPersona();
     }
 
-    // ELIMINAR EFECTIVO CON ESPÍA ACTIVO PARA DIAGNÓSTICO
+    // ELIMINAR EFECTIVO CON LIMPIEZA DE TARJETA ACTIVA
     async function eliminarEfectivo(id) {
       if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
       try {
-        console.log("🕵️ [ESPIA DELETE] Intentando eliminar ID:", id);
         const res = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        console.log("🕵️ [ESPIA DELETE] Código HTTP recibido:", res.status);
+        const resultado = await res.json();
         
-        const textoRes = await res.text();
-        console.log("🕵️ [ESPIA DELETE] Respuesta cruda del servidor:", textoRes);
-
-        let resultado;
-        try {
-          resultado = JSON.parse(textoRes);
-        } catch (e) {
-          alert("🕵️ [ESPIA DELETE] Error: El servidor no devolvió un JSON válido. Ver F12.");
-          return;
-        }
-
         if (resultado.success) {
-          console.log("🕵️ [ESPIA DELETE] Borrado exitoso confirmado. Refrescando directorio...");
-          alert('🕵️ [ESPIA DELETE] Éxito: El servidor confirmó el borrado.');
+          alert('Efectivo eliminado correctamente.');
           
+          // Si la persona eliminada era la que estaba seleccionada en la tarjeta, la limpiamos de inmediato
+          if (personaSeleccionada && personaSeleccionada.id === id) {
+            limpiarSeleccion();
+          }
+
           const resDirectorio = await fetch(`/api/personal-completo?_=${Date.now()}`);
           directorioGlobal = await resDirectorio.json();
-          console.log("🕵️ [ESPIA DELETE] Lista nueva recibida:", directorioGlobal);
           renderizarDirectorio(directorioGlobal);
           cargarTodo();
         } else {
-          alert('🕵️ [ESPIA DELETE] El servidor rechazó el borrado: ' + (resultado.error || 'Desconocido'));
+          alert('No se pudo eliminar el registro.');
         }
       } catch (err) {
-        console.error("🕵️ [ESPIA DELETE] Excepción atrapada:", err);
-        alert('🕵️ [ESPIA DELETE] Excepción de red al borrar.');
+        console.error("Error al eliminar:", err);
       }
     }
 

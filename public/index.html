@@ -1032,23 +1032,40 @@
       abrirModalEditarPersona();
     }
 
+    // ELIMINAR EFECTIVO CON ESPÍA ACTIVO PARA DIAGNÓSTICO
     async function eliminarEfectivo(id) {
       if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
       try {
+        console.log("🕵️ [ESPIA DELETE] Intentando eliminar ID:", id);
         const res = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        const resultado = await res.json();
+        console.log("🕵️ [ESPIA DELETE] Código HTTP recibido:", res.status);
         
+        const textoRes = await res.text();
+        console.log("🕵️ [ESPIA DELETE] Respuesta cruda del servidor:", textoRes);
+
+        let resultado;
+        try {
+          resultado = JSON.parse(textoRes);
+        } catch (e) {
+          alert("🕵️ [ESPIA DELETE] Error: El servidor no devolvió un JSON válido. Ver F12.");
+          return;
+        }
+
         if (resultado.success) {
-          alert('Efectivo eliminado correctamente.');
+          console.log("🕵️ [ESPIA DELETE] Borrado exitoso confirmado. Refrescando directorio...");
+          alert('🕵️ [ESPIA DELETE] Éxito: El servidor confirmó el borrado.');
+          
           const resDirectorio = await fetch(`/api/personal-completo?_=${Date.now()}`);
           directorioGlobal = await resDirectorio.json();
+          console.log("🕵️ [ESPIA DELETE] Lista nueva recibida:", directorioGlobal);
           renderizarDirectorio(directorioGlobal);
           cargarTodo();
         } else {
-          alert('No se pudo eliminar el registro.');
+          alert('🕵️ [ESPIA DELETE] El servidor rechazó el borrado: ' + (resultado.error || 'Desconocido'));
         }
       } catch (err) {
-        console.error("Error al eliminar:", err);
+        console.error("🕵️ [ESPIA DELETE] Excepción atrapada:", err);
+        alert('🕵️ [ESPIA DELETE] Excepción de red al borrar.');
       }
     }
 
@@ -1256,7 +1273,6 @@
       cerrarModalOficial();
     }
 
-    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
     function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
     function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
     async function guardarNuevoIntegrante() {

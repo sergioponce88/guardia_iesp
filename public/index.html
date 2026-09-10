@@ -1105,7 +1105,7 @@
     }
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
-    // FUNCIÓN DE GUARDADO POR ID SELECCIONADO (DIRECTA Y SEGURA)
+    // FUNCIÓN DE GUARDADO LIBRE (ACTUALIZA DIRECTO POR ID SIN VALIDACIONES DE DNI)
     async function guardarEdicionPersona() {
       const dni = document.getElementById('edit-dni').value.trim();
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
@@ -1138,13 +1138,13 @@
         const resultado = await respuesta.json();
         if (resultado.success) {
           cerrarModalEditarPersona();
-          alert('¡Datos guardados con éxito en la base de datos!');
+          alert('¡Modificación guardada con éxito!');
           
           const idBuscado = idReal || resultado.id;
-          const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(idBuscado)}`);
-          const listaFresca = await resFresca.json();
-          if (listaFresca.length > 0) {
-            seleccionarPersona(listaFresca[0]);
+          if (idBuscado) {
+            const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(idBuscado)}`);
+            const listaFresca = await resFresca.json();
+            if (listaFresca.length > 0) seleccionarPersona(listaFresca[0]);
           }
         } else {
           alert('El servidor rechazó la operación: ' + (resultado.error || 'Desconocido'));

@@ -11,7 +11,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXIÓN DIRECTA Y ABSOLUTA AL ARCHIVO GUARDIA_IESP.DB EXISTENTE EN LA RAÍZ
 const dbPath = path.resolve(__dirname, 'guardia_iesp.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -21,6 +20,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+// Creación de tablas y auto-migración de columnas faltantes para evitar errores
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS personas (
@@ -34,7 +34,13 @@ db.serialize(() => {
       vehiculo_modelo TEXT,
       vehiculo_patente TEXT
     )
-  `);
+  `, () => {
+    // Asegurar que las columnas existan aunque la tabla sea vieja
+    db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`, () => {});
+    db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`, () => {});
+    db.run(`ALTER TABLE personas ADD COLUMN credencial_url TEXT`, () => {});
+    db.run(`ALTER TABLE personas ADD COLUMN credencial_token TEXT`, () => {});
+  });
 
   db.run(`
     CREATE TABLE IF NOT EXISTS libro_guardia (

@@ -31,7 +31,12 @@ async function inicializarBaseDatos() {
         credencial_url TEXT,
         credencial_token TEXT,
         vehiculo_modelo TEXT,
-        vehiculo_patente TEXT
+        vehiculo_patente TEXT,
+        celular TEXT,
+        familiar_nombre_1 TEXT,
+        familiar_telefono_1 TEXT,
+        familiar_nombre_2 TEXT,
+        familiar_telefono_2 TEXT
       )
     `);
 
@@ -80,12 +85,13 @@ async function inicializarBaseDatos() {
           const dni = String(row['DNI'] || 'S/D').trim();
           const cargoChapa = String(row['CARGO'] || 'S/D').trim();
           const curso = String(row['CURSO'] || '').trim();
+          const celular = String(row['CELULAR'] || '').trim();
           const jerarquiaRol = curso ? `Cadete ${curso}` : 'Cadete';
 
           if (nombreCompleto !== ',') {
             await pool.query(
-              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ($1, $2, $3, $4)`,
-              [dni, nombreCompleto, jerarquiaRol, cargoChapa]
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, celular) VALUES ($1, $2, $3, $4, $5)`,
+              [dni, nombreCompleto, jerarquiaRol, cargoChapa, celular]
             );
           }
         }
@@ -203,7 +209,11 @@ app.get('/api/vehiculos', async (req, res) => {
 });
 
 app.put('/api/personas/:id', async (req, res) => {
-  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
+  const { 
+    vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, 
+    dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial,
+    celular, familiar_nombre_1, familiar_telefono_1, familiar_nombre_2, familiar_telefono_2 
+  } = req.body;
   const idPersona = req.params.id;
 
   try {
@@ -220,6 +230,11 @@ app.put('/api/personas/:id', async (req, res) => {
     const nuevoNombre = (nombre_completo !== undefined && nombre_completo !== '') ? nombre_completo.toUpperCase() : actual.nombre_completo;
     const nuevaJerarquia = (jerarquia_rol !== undefined && jerarquia_rol !== '') ? jerarquia_rol : actual.jerarquia_rol;
     const nuevoChapa = (cargo_chapa !== undefined && cargo_chapa !== '') ? cargo_chapa : actual.cargo_chapa;
+    const nuevoCelular = celular !== undefined ? celular : actual.celular;
+    const famNom1 = familiar_nombre_1 !== undefined ? familiar_nombre_1 : actual.familiar_nombre_1;
+    const famTel1 = familiar_telefono_1 !== undefined ? familiar_telefono_1 : actual.familiar_telefono_1;
+    const famNom2 = familiar_nombre_2 !== undefined ? familiar_nombre_2 : actual.familiar_nombre_2;
+    const famTel2 = familiar_telefono_2 !== undefined ? familiar_telefono_2 : actual.familiar_telefono_2;
     
     let nuevaCredUrl = actual.credencial_url;
     let nuevoToken = actual.credencial_token;
@@ -236,11 +251,11 @@ app.put('/api/personas/:id', async (req, res) => {
 
     const sql = `
       UPDATE personas 
-      SET dni = $1, nombre_completo = $2, jerarquia_rol = $3, cargo_chapa = $4, credencial_url = $5, credencial_token = $6, vehiculo_modelo = $7, vehiculo_patente = $8
-      WHERE id = $9
+      SET dni = $1, nombre_completo = $2, jerarquia_rol = $3, cargo_chapa = $4, credencial_url = $5, credencial_token = $6, vehiculo_modelo = $7, vehiculo_patente = $8, celular = $9, familiar_nombre_1 = $10, familiar_telefono_1 = $11, familiar_nombre_2 = $12, familiar_telefono_2 = $13
+      WHERE id = $14
     `;
 
-    await pool.query(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona]);
+    await pool.query(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, nuevoCelular, famNom1, famTel1, famNom2, famTel2, idPersona]);
     res.json({ success: true });
   } catch (e) {
     console.error("Error al actualizar:", e.message);
@@ -249,7 +264,7 @@ app.put('/api/personas/:id', async (req, res) => {
 });
 
 app.post('/api/personas', async (req, res) => {
-  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente, celular, familiar_nombre_1, familiar_telefono_1, familiar_nombre_2, familiar_telefono_2 } = req.body;
   
   if (!nombre_completo) {
     return res.status(400).json({ error: 'El nombre completo es obligatorio' });
@@ -258,12 +273,12 @@ app.post('/api/personas', async (req, res) => {
   const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : (credencial_token || null);
 
   const sql = `
-    INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente, celular, familiar_nombre_1, familiar_telefono_1, familiar_nombre_2, familiar_telefono_2)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING id
   `;
   try {
-    const resultado = await pool.query(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null]);
+    const resultado = await pool.query(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null, celular || null, familiar_nombre_1 || null, familiar_telefono_1 || null, familiar_nombre_2 || null, familiar_telefono_2 || null]);
     res.json({ id: resultado.rows[0].id, success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -40,6 +40,13 @@ async function inicializarBaseDatos() {
       )
     `);
 
+    // Asegurar columnas nuevas en caso de que la tabla ya exista en la base de datos
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS celular TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_1 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_1 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_2 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_2 TEXT;`);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS libro_guardia (
         id SERIAL PRIMARY KEY,
@@ -63,7 +70,7 @@ async function inicializarBaseDatos() {
         valor TEXT
       )
     `);
-    console.log('Tablas verificadas y creadas exitosamente en PostgreSQL.');
+    console.log('Tablas y columnas verificadas exitosamente en PostgreSQL.');
 
     // Verificar si la tabla de personas está vacía para importar automáticamente los Excel
     const resConteo = await pool.query(`SELECT COUNT(*) FROM personas`);

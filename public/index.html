@@ -26,6 +26,9 @@
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
       </button>
+      <button onclick="abrirModalCadetes()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+        <i class="fa-solid fa-graduation-cap mr-1.5"></i> Compañía Cadetes
+      </button>
       <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva
       </button>
@@ -336,6 +339,60 @@
     </div>
   </div>
 
+  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
+  <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-5xl w-full space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-graduation-cap text-purple-600 mr-2"></i> Control de Asistencia - Compañía de Cadetes (1°, 2° y 3° Año)
+        </h3>
+        <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+
+      <!-- Filtros por Curso y Contadores -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 1° Año Presentes</span>
+          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 0</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 2° Año Presentes</span>
+          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 0</p>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 3° Año Presentes</span>
+          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 0</p>
+        </div>
+        <div class="flex items-center justify-center space-x-1">
+          <button onclick="filtrarCursoCadetes('TODOS')" class="bg-slate-800 text-white px-2.5 py-1.5 rounded text-xs font-semibold">Todos</button>
+          <button onclick="filtrarCursoCadetes('Cadete 1° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">1°</button>
+          <button onclick="filtrarCursoCadetes('Cadete 2° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">2°</button>
+          <button onclick="filtrarCursoCadetes('Cadete 3° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">3°</button>
+        </div>
+      </div>
+
+      <!-- Tabla de Cadetes -->
+      <div class="max-h-96 overflow-y-auto custom-scroll border rounded">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Curso / Jerarquía</th>
+              <th class="p-2">N° Legajo</th>
+              <th class="p-2">Apellido y Nombre</th>
+              <th class="p-2 text-center">Estado Actual</th>
+              <th class="p-2 text-center">Último Movimiento / Hora</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-asistencia-cadetes" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="cerrarModalCadetes()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Asociar / Editar Credencial QR -->
   <div id="modal-credencial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
@@ -495,6 +552,7 @@
     let personaSeleccionada = null;
     let registrosCargados = [];
     let directorioGlobal = [];
+    let cadetesGlobal = [];
     let streamVideo = null;
     let scanInterval = null;
     let qrEscaneadoTemporal = null;
@@ -515,7 +573,6 @@
           const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}&_=${Date.now()}`);
           const datos = await res.json();
           
-          // Filtro estricto cruzado con la base de datos viva para evitar mostrar borrados
           const resDir = await fetch(`/api/personal-completo?_=${Date.now()}`);
           const directorioActual = await resDir.json();
           const idsValidos = directorioActual.map(p => p.id);
@@ -1039,7 +1096,6 @@
       abrirModalEditarPersona();
     }
 
-    // ELIMINAR EFECTIVO CON LIMPIEZA DE TARJETA ACTIVA
     async function eliminarEfectivo(id) {
       if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
       try {
@@ -1048,12 +1104,9 @@
         
         if (resultado.success) {
           alert('Efectivo eliminado correctamente.');
-          
-          // Si la persona eliminada era la que estaba seleccionada en la tarjeta, la limpiamos de inmediato
           if (personaSeleccionada && personaSeleccionada.id === id) {
             limpiarSeleccion();
           }
-
           const resDirectorio = await fetch(`/api/personal-completo?_=${Date.now()}`);
           directorioGlobal = await resDirectorio.json();
           renderizarDirectorio(directorioGlobal);
@@ -1067,6 +1120,104 @@
     }
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
+
+    // FUNCIONES PANEL ASISTENCIA CADETES
+    async function abrirModalCadetes() {
+      try {
+        const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
+        const personal = await resPersonal.json();
+
+        const fechaHoy = document.getElementById('filtro-fecha').value;
+        const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
+        const movimientos = await resLibro.json();
+
+        cadetesGlobal = personal.filter(p => {
+          const jer = (p.jerarquia_rol || '').toLowerCase();
+          return jer.includes('cadete');
+        });
+
+        renderizarTablaCadetes(cadetesGlobal, movimientos);
+        document.getElementById('modal-cadetes').classList.remove('hidden');
+      } catch (err) {
+        console.error("Error al abrir panel de cadetes:", err);
+      }
+    }
+
+    function renderizarTablaCadetes(listaCadetes, movimientos) {
+      const tbody = document.getElementById('tabla-asistencia-cadetes');
+      tbody.innerHTML = '';
+
+      let c1Total = 0, c1Presentes = 0;
+      let c2Total = 0, c2Presentes = 0;
+      let c3Total = 0, c3Presentes = 0;
+
+      if (!listaCadetes || listaCadetes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
+        return;
+      }
+
+      listaCadetes.forEach(cad => {
+        const jer = cad.jerarquia_rol || '';
+        const nom = cad.nombre_completo || cad.nombre || '';
+        const chp = cad.cargo_chapa || cad.chapa || 'S/D';
+
+        const ultimoMov = movimientos.find(m => m.protagonista.includes(nom));
+        let estadoTxt = 'EN INSTITUTO (PRESENTE)';
+        let badgeClase = 'bg-emerald-100 text-emerald-800';
+        let horaMov = 'Sin registros hoy';
+
+        if (ultimoMov) {
+          horaMov = `${ultimoMov.hora} (${ultimoMov.puesto})`;
+          if (ultimoMov.accion && ultimoMov.accion.includes('EGRESO')) {
+            estadoTxt = 'FUERA DEL INSTITUTO';
+            badgeClase = 'bg-rose-100 text-rose-800';
+          } else {
+            if (jer.includes('1°')) c1Presentes++;
+            if (jer.includes('2°')) c2Presentes++;
+            if (jer.includes('3°')) c3Presentes++;
+          }
+        } else {
+          if (jer.includes('1°')) c1Presentes++;
+          if (jer.includes('2°')) c2Presentes++;
+          if (jer.includes('3°')) c3Presentes++;
+        }
+
+        if (jer.includes('1°')) c1Total++;
+        if (jer.includes('2°')) c2Total++;
+        if (jer.includes('3°')) c3Total++;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-2 font-semibold text-slate-700">${jer}</td>
+            <td class="p-2 font-mono text-purple-600 font-bold">${chp}</td>
+            <td class="p-2 font-bold text-slate-800">${nom}</td>
+            <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClase}">${estadoTxt}</span></td>
+            <td class="p-2 text-center text-slate-500 font-mono">${horaMov}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('stat-cad1').innerText = `${c1Presentes} / ${c1Total}`;
+      document.getElementById('stat-cad2').innerText = `${c2Presentes} / ${c2Total}`;
+      document.getElementById('stat-cad3').innerText = `${c3Presentes} / ${c3Total}`;
+    }
+
+    async function filtrarCursoCadetes(curso) {
+      const fechaHoy = document.getElementById('filtro-fecha').value;
+      const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
+      const movimientos = await resLibro.json();
+
+      if (curso === 'TODOS') {
+        renderizarTablaCadetes(cadetesGlobal, movimientos);
+      } else {
+        const filtrados = cadetesGlobal.filter(c => (c.jerarquia_rol || '').includes(curso));
+        renderizarTablaCadetes(filtrados, movimientos);
+      }
+    }
+
+    function cerrarModalCadetes() {
+      document.getElementById('modal-cadetes').classList.add('hidden');
+    }
 
     function abrirModalCredencial() {
       if (!personaSeleccionada) {
@@ -1129,7 +1280,6 @@
     }
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
-    // GUARDADO DIRECTO + FOTO GRANDE INTEGRADA
     async function guardarEdicionPersona() {
       const dni = document.getElementById('edit-dni').value.trim();
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
@@ -1175,7 +1325,6 @@
         }
       } catch (err) {
         console.error("Error al guardar edición:", err);
-        alert('Error de red al intentar guardar.');
       }
     }
 

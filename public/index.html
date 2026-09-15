@@ -314,6 +314,47 @@
     </div>
   </div>
 
+  <!-- MODAL DE CONFIRMACIÓN VISUAL TÁCTICA POST-MOVIMIENTO -->
+  <div id="modal-confirmacion-visual" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center relative border-4 border-slate-900">
+      <div id="badge-resultado-mov" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1">
+        REGISTRO EXITOSO
+      </div>
+      
+      <!-- Foto Grande del Efectivo -->
+      <div class="w-32 h-32 mx-auto bg-slate-200 rounded-lg border-4 border-slate-300 overflow-hidden shadow-md flex items-center justify-center">
+        <img id="img-visual-foto" src="" alt="Foto Oficial" class="w-full h-full object-cover" />
+      </div>
+
+      <!-- Datos Identificatorios -->
+      <div class="space-y-1">
+        <h3 id="txt-visual-nombre" class="font-bold text-slate-900 text-sm uppercase">APELLIDO Y NOMBRE</h3>
+        <p id="txt-visual-jerarquia" class="text-xs text-slate-600 font-semibold">Jerarquía / Rol</p>
+        <p id="txt-visual-chapa" class="text-xs text-blue-600 font-mono font-bold">N° Legajo: S/D</p>
+      </div>
+
+      <!-- Hora y Puesto del Movimiento -->
+      <div class="bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 text-left">
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-medium">Acción:</span>
+          <span id="txt-visual-accion" class="font-bold text-slate-800">INGRESO</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-medium">Hora exacta:</span>
+          <span id="txt-visual-hora" class="font-mono font-bold text-slate-800">00:00</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500 font-medium">Puesto:</span>
+          <span id="txt-visual-puesto" class="font-bold text-slate-800">Puesto 1</span>
+        </div>
+      </div>
+
+      <button onclick="cerrarModalVisual()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg text-xs shadow transition-colors">
+        ACEPTAR Y CONTINUAR
+      </button>
+    </div>
+  </div>
+
   <!-- Modal Listado Fuerza Efectiva Completo -->
   <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-4xl w-full space-y-3 shadow-xl">
@@ -970,17 +1011,71 @@
       };
 
       try {
-        await fetch('/api/libro-guardia', {
+        const res = await fetch('/api/libro-guardia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        const dataRes = await res.json();
+        
+        // Mostrar pantalla visual táctica de confirmación
+        mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
+
         limpiarSeleccion();
         cargarLibro();
         cargarFuerza();
       } catch (e) {
         console.error(e);
       }
+    }
+
+    function mostrarPantallaConfirmacionVisual(persona, tipoAccion, horaMovimiento, puestoActual) {
+      const modal = document.getElementById('modal-confirmacion-visual');
+      const badge = document.getElementById('badge-resultado-mov');
+      const img = document.getElementById('img-visual-foto');
+      const nombre = document.getElementById('txt-visual-nombre');
+      const jerarquia = document.getElementById('txt-visual-jerarquia');
+      const chapa = document.getElementById('txt-visual-chapa');
+      const accion = document.getElementById('txt-visual-accion');
+      const hora = document.getElementById('txt-visual-hora');
+      const puesto = document.getElementById('txt-visual-puesto');
+
+      const nom = persona.nombre_completo || persona.nombre || 'Personal';
+      const jer = persona.jerarquia_rol || persona.jerarquia || '';
+      const leg = persona.cargo_chapa || persona.chapa || 'S/D';
+
+      nombre.innerText = nom;
+      jerarquia.innerText = jer;
+      chapa.innerText = `N° Legajo: ${leg}`;
+      hora.innerText = horaMovimiento;
+      puesto.innerText = puestoActual;
+      accion.innerText = tipoAccion;
+
+      if (tipoAccion.includes('INGRESO')) {
+        badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1 bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badge.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> INGRESO REGISTRADO';
+      } else {
+        badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1 bg-rose-100 text-rose-800 border border-rose-300';
+        badge.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> EGRESO REGISTRADO';
+      }
+
+      let enlace = persona.credencial_url;
+      if (!enlace && persona.credencial_token) {
+        enlace = `https://credenciales.dpd1.ar/publicoQR/${persona.credencial_token}`;
+      }
+
+      if (enlace) {
+        img.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
+        img.onerror = () => { img.src = placeholderSvg; };
+      } else {
+        img.src = placeholderSvg;
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function cerrarModalVisual() {
+      document.getElementById('modal-confirmacion-visual').classList.add('hidden');
     }
 
     async function cargarFuerza() {

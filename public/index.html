@@ -764,7 +764,7 @@
           seleccionarPersona(datos[0]);
         } else {
           qrEscaneadoTemporal = enlace;
-          const apellidoBusqueda = prompt("El QR escaneado no está vinculado. Ingrese el Apellido o Nombre del efectivo para buscarlo y asociarlo:");
+          const apellidoBusqueda = prompt("El QR escaneado no está vinculado a nadie.\nIngrese el Apellido o Nombre del efectivo para buscarlo y asociarle este QR:");
           if (!apellidoBusqueda) return;
 
           const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}&_=${Date.now()}`);
@@ -798,9 +798,11 @@
         alert('Seleccione un efectivo primero.');
         return;
       }
-      const enlaceA_Guardar = qrEscaneadoTemporal || personaSeleccionada.credencial_url;
+      
+      const enlaceA_Guardar = qrEscaneadoTemporal || document.getElementById('input-credencial-url')?.value;
+      
       if (!enlaceA_Guardar) {
-        alert('No hay ningún código QR pendiente para guardar.');
+        alert('No hay ningún código QR pendiente para guardar. Escanee un código primero.');
         return;
       }
 
@@ -808,7 +810,7 @@
 
       try {
         const btnConf = document.getElementById('btn-confirmar-qr');
-        btnConf.innerText = "Guardando...";
+        btnConf.innerText = "Guardando en la nube...";
         btnConf.disabled = true;
 
         const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
@@ -831,7 +833,7 @@
           qrEscaneadoTemporal = null;
           seleccionarPersona(personaSeleccionada);
           btnConf.classList.add('hidden');
-          alert('¡Credencial QR confirmada y guardada exitosamente!');
+          alert('¡Credencial QR vinculada y guardada exitosamente en la base de datos!');
         } else {
           alert('Error al guardar: ' + (resultado.error || 'Desconocido'));
         }

@@ -753,6 +753,8 @@
 
     async function procesarLecturaQR(enlace) {
       if (!enlace) return;
+      cerrarCamaraQR();
+
       try {
         const hash = enlace.trim().split('/').pop().replace('#', '');
         const res = await fetch(`/api/buscar?q=${encodeURIComponent(hash)}&_=${Date.now()}`);
@@ -805,6 +807,10 @@
       const hash = enlaceA_Guardar.trim().split('/').pop().replace('#', '');
 
       try {
+        const btnConf = document.getElementById('btn-confirmar-qr');
+        btnConf.innerText = "Guardando...";
+        btnConf.disabled = true;
+
         const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -815,16 +821,26 @@
         });
 
         const resultado = await respuesta.json();
+        
+        btnConf.innerText = "Confirmar y Guardar Vinculación";
+        btnConf.disabled = false;
+
         if (resultado.success) {
           personaSeleccionada.credencial_url = enlaceA_Guardar;
           personaSeleccionada.credencial_token = hash;
           qrEscaneadoTemporal = null;
           seleccionarPersona(personaSeleccionada);
-          document.getElementById('btn-confirmar-qr').classList.add('hidden');
+          btnConf.classList.add('hidden');
           alert('¡Credencial QR confirmada y guardada exitosamente!');
+        } else {
+          alert('Error al guardar: ' + (resultado.error || 'Desconocido'));
         }
       } catch (err) {
         console.error("Error al confirmar QR:", err);
+        alert('Error de conexión al guardar la credencial.');
+        const btnConf = document.getElementById('btn-confirmar-qr');
+        btnConf.innerText = "Confirmar y Guardar Vinculación";
+        btnConf.disabled = false;
       }
     }
 
@@ -871,7 +887,6 @@
       document.getElementById('persona-sub').innerText = jer;
       document.getElementById('persona-det').innerText = `DNI: ${doc} | N° de Legajo: ${chp}`;
       
-      // Mostrar Celular y WhatsApp
       const celular = p.celular || '';
       const celSpan = document.getElementById('persona-celular');
       const btnWa = document.getElementById('btn-whatsapp-cadete');
@@ -887,7 +902,6 @@
         btnWa.classList.add('hidden');
       }
 
-      // Contactos de Familiares
       const fam1Nom = p.familiar_nombre_1 || '';
       const fam1Tel = p.familiar_telefono_1 || '';
       const fam2Nom = p.familiar_nombre_2 || '';

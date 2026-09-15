@@ -40,7 +40,7 @@ async function inicializarBaseDatos() {
       )
     `);
 
-    // Asegurar columnas nuevas en caso de que la tabla ya exista en la base de datos
+    // Forzar y asegurar columnas nuevas si la tabla ya existía previamente
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS celular TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_1 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_1 TEXT;`);

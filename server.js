@@ -1,8 +1,7 @@
 const express = require('express');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const axios = require('axios');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,61 +10,59 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const dbPath = path.resolve(__dirname, 'guardia_iesp.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error al conectar con la base de datos:', err.message);
-  } else {
-    console.log('Conectado exitosamente a la base de datos en:', dbPath);
+// Configuración de conexión a PostgreSQL usando la variable de entorno de Render
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// Inicialización de tablas en la nube
+async function inicializarBaseDatos() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personas (
+        id SERIAL PRIMARY KEY,
+        dni TEXT,
+        nombre_completo TEXT,
+        jerarquia_rol TEXT,
+        cargo_chapa TEXT,
+        credencial_url TEXT,
+        credencial_token TEXT,
+        vehiculo_modelo TEXT,
+        vehiculo_patente TEXT
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS libro_guardia (
+        id SERIAL PRIMARY KEY,
+        hora TEXT,
+        fecha_completa TEXT,
+        puesto TEXT,
+        accion TEXT,
+        protagonista TEXT,
+        detalle TEXT,
+        rubro TEXT,
+        estado TEXT DEFAULT 'ACTIVO',
+        motivo_anulacion TEXT,
+        notificado_wa INTEGER DEFAULT 0,
+        con_retardo INTEGER DEFAULT 0
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS configuracion_guardia (
+        clave TEXT PRIMARY KEY,
+        valor TEXT
+      )
+    `);
+    console.log('Tablas verificadas y creadas exitosamente en PostgreSQL.');
+  } catch (err) {
+    console.error('Error al inicializar la base de datos:', err);
   }
-});
+}
 
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS personas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      dni TEXT,
-      nombre_completo TEXT,
-      jerarquia_rol TEXT,
-      cargo_chapa TEXT,
-      credencial_url TEXT,
-      credencial_token TEXT,
-      vehiculo_modelo TEXT,
-      vehiculo_patente TEXT
-    )
-  `, (err) => {
-    if (!err) {
-      db.run(`ALTER TABLE personas ADD COLUMN vehiculo_modelo TEXT`, () => {});
-      db.run(`ALTER TABLE personas ADD COLUMN vehiculo_patente TEXT`, () => {});
-      db.run(`ALTER TABLE personas ADD COLUMN credencial_url TEXT`, () => {});
-      db.run(`ALTER TABLE personas ADD COLUMN credencial_token TEXT`, () => {});
-    }
-  });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS libro_guardia (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      hora TEXT,
-      fecha_completa TEXT,
-      puesto TEXT,
-      accion TEXT,
-      protagonista TEXT,
-      detalle TEXT,
-      rubro TEXT,
-      estado TEXT DEFAULT 'ACTIVO',
-      motivo_anulacion TEXT,
-      notificado_wa INTEGER DEFAULT 0,
-      con_retardo INTEGER DEFAULT 0
-    )
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS configuracion_guardia (
-      clave TEXT PRIMARY KEY,
-      valor TEXT
-    )
-  `);
-});
+inicializarBaseDatos();
 
 app.get('/api/extraer-foto', async (req, res) => {
   const { url } = req.query;
@@ -105,81 +102,91 @@ app.get('/api/extraer-foto', async (req, res) => {
   }
 });
 
-app.get('/api/personal-completo', (req, res) => {
-  db.all(`SELECT * FROM personas ORDER BY id DESC`, [], (e, filas) => {
-    if (e) return res.status(500).json({ error: e.message });
-    res.json(filas || []);
-  });
+app.get('/api/personal-completo', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT * FROM personas ORDER BY id DESC`);
+    res.json(resultado.rows || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.get('/api/buscar', (req, res) => {
+app.get('/api/buscar', async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
 
   const sql = `
     SELECT * FROM personas 
-    WHERE id = ? OR dni LIKE ? OR nombre_completo LIKE ? OR jerarquia_rol LIKE ? OR cargo_chapa LIKE ? OR credencial_token LIKE ?
+    WHERE id::text = $1 OR dni ILIKE $2 OR nombre_completo ILIKE $2 OR jerarquia_rol ILIKE $2 OR cargo_chapa ILIKE $2 OR credencial_token ILIKE $2
     LIMIT 100
   `;
   const param = `%${q}%`;
-  db.all(sql, [q, param, param, param, param, param], (err, filas) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(filas || []);
-  });
-});
-
-app.get('/api/vehiculos', (req, res) => {
-  db.all(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`, [], (err, filas) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(filas || []);
-  });
-});
-
-app.put('/api/personas/:id', (req, res) => {
-  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
-  const idPersona = req.params.id;
-
-  if (limpiar_credencial) {
-    db.run(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = ?`, [idPersona], function (e) {
-      if (e) return res.status(500).json({ error: e.message });
-      res.json({ success: true });
-    });
-  } else {
-    db.get(`SELECT * FROM personas WHERE id = ?`, [idPersona], (err, actual) => {
-      if (err || !actual) return res.status(404).json({ error: 'Persona no encontrada' });
-
-      let tokenCalculado = credencial_token !== undefined ? credencial_token : actual.credencial_token;
-      if (credencial_url) {
-        tokenCalculado = credencial_url.trim().split('/').pop().replace('#', '');
-      }
-
-      const nuevoDni = dni !== undefined ? dni : actual.dni;
-      const nuevoNombre = nombre_completo !== undefined ? nombre_completo.toUpperCase() : actual.nombre_completo;
-      const nuevaJerarquia = jerarquia_rol !== undefined ? jerarquia_rol : actual.jerarquia_rol;
-      const nuevoChapa = cargo_chapa !== undefined ? cargo_chapa : actual.cargo_chapa;
-      const nuevaCredUrl = credencial_url !== undefined ? credencial_url : actual.credencial_url;
-      const nuevoToken = tokenCalculado;
-      const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
-      const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
-
-      const sql = `
-        UPDATE personas 
-        SET dni = ?, nombre_completo = ?, jerarquia_rol = ?, cargo_chapa = ?, credencial_url = ?, credencial_token = ?, vehiculo_modelo = ?, vehiculo_patente = ?
-        WHERE id = ?
-      `;
-
-      db.run(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona], function (e) {
-        if (e) {
-          console.error("Error al actualizar:", e.message);
-          return res.status(500).json({ error: e.message });
-        }
-        res.json({ success: true });
-      });
-    });
+  try {
+    const resultado = await pool.query(sql, [q, param]);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/personas', (req, res) => {
+app.get('/api/vehiculos', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT id, nombre_completo AS titular, jerarquia_rol AS jerarquia, vehiculo_modelo AS modelo, vehiculo_patente AS patente FROM personas WHERE vehiculo_patente IS NOT NULL AND vehiculo_patente != ''`);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// RUTA PUT BLINDADA PARA QUE EL QR NO SE BORRE AL EDITAR DATOS
+app.put('/api/personas/:id', async (req, res) => {
+  const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
+  const idPersona = req.params.id;
+
+  try {
+    if (limpiar_credencial) {
+      await pool.query(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = $1`, [idPersona]);
+      return res.json({ success: true });
+    }
+
+    const actualQuery = await pool.query(`SELECT * FROM personas WHERE id = $1`, [idPersona]);
+    if (actualQuery.rows.length === 0) return res.status(404).json({ error: 'Persona no encontrada' });
+    const actual = actualQuery.rows[0];
+
+    const nuevoDni = (dni !== undefined && dni !== '') ? dni : actual.dni;
+    const nuevoNombre = (nombre_completo !== undefined && nombre_completo !== '') ? nombre_completo.toUpperCase() : actual.nombre_completo;
+    const nuevaJerarquia = (jerarquia_rol !== undefined && jerarquia_rol !== '') ? jerarquia_rol : actual.jerarquia_rol;
+    const nuevoChapa = (cargo_chapa !== undefined && cargo_chapa !== '') ? cargo_chapa : actual.cargo_chapa;
+    
+    // Blindaje de credencial para preservar el QR actual si no se modifica expresamente
+    let nuevaCredUrl = actual.credencial_url;
+    let nuevoToken = actual.credencial_token;
+    
+    if (credencial_url !== undefined && credencial_url !== '') {
+      nuevaCredUrl = credencial_url;
+      nuevoToken = credencial_url.trim().split('/').pop().replace('#', '');
+    } else if (credencial_token !== undefined && credencial_token !== '') {
+      nuevoToken = credencial_token;
+    }
+
+    const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+    const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
+
+    const sql = `
+      UPDATE personas 
+      SET dni = $1, nombre_completo = $2, jerarquia_rol = $3, cargo_chapa = $4, credencial_url = $5, credencial_token = $6, vehiculo_modelo = $7, vehiculo_patente = $8
+      WHERE id = $9
+    `;
+
+    await pool.query(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, idPersona]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error al actualizar:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/personas', async (req, res) => {
   const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente } = req.body;
   
   if (!nombre_completo) {
@@ -190,39 +197,39 @@ app.post('/api/personas', (req, res) => {
 
   const sql = `
     INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token, vehiculo_modelo, vehiculo_patente)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id
   `;
-  db.run(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null], function (e) {
-    if (e) return res.status(500).json({ error: e.message });
-    res.json({ id: this.lastID, success: true });
-  });
+  try {
+    const resultado = await pool.query(sql, [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token, vehiculo_modelo || null, vehiculo_patente || null]);
+    res.json({ id: resultado.rows[0].id, success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// RUTA DELETE BLINDADA PARA ASEGURAR EL BORRADO REAL
-app.delete('/api/personas/:id', (req, res) => {
+app.delete('/api/personas/:id', async (req, res) => {
   const idPersona = req.params.id;
-  console.log("Servidor recibiendo orden de eliminar ID:", idPersona);
-
-  db.run(`DELETE FROM personas WHERE id = ?`, [idPersona], function (e) {
-    if (e) {
-      console.error("Error SQLite al borrar:", e.message);
-      return res.status(500).json({ success: false, error: e.message });
-    }
-    console.log(`Registro con ID ${idPersona} borrado de la base de datos con éxito.`);
+  try {
+    await pool.query(`DELETE FROM personas WHERE id = $1`, [idPersona]);
     res.json({ success: true });
-  });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/libro-guardia', (req, res) => {
+app.get('/api/libro-guardia', async (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
-  const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id DESC`;
-  db.all(sql, [`${fecha}%`], (err, filas) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(filas || []);
-  });
+  const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id DESC`;
+  try {
+    const resultado = await pool.query(sql, [`${fecha}%`]);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.post('/api/libro-guardia', (req, res) => {
+app.post('/api/libro-guardia', async (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   const now = new Date();
   const hora = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -230,31 +237,40 @@ app.post('/api/libro-guardia', (req, res) => {
 
   const sql = `
     INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 0, 0)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVO', 0, 0)
+    RETURNING id
   `;
 
-  db.run(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL'], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, success: true, hora });
-  });
+  try {
+    const resultado = await pool.query(sql, [hora, fechaCompleta, puesto, accion, protagonista, detalle, rubro || 'PERSONAL']);
+    res.json({ id: resultado.rows[0].id, success: true, hora });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.post('/api/libro-guardia/marcar-enviados', (req, res) => {
+app.post('/api/libro-guardia/marcar-enviados', async (req, res) => {
   const { ids } = req.body;
   if (!ids || ids.length === 0) return res.json({ success: true });
-  const placeholders = ids.map(() => '?').join(',');
+  
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
   const sql = `UPDATE libro_guardia SET notificado_wa = 1 WHERE id IN (${placeholders})`;
-  db.run(sql, ids, function (err) {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    await pool.query(sql, ids);
     res.json({ success: true });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/fuerza-presente', (req, res) => {
+app.get('/api/fuerza-presente', async (req, res) => {
   const hoy = `${new Date().toISOString().split('T')[0]}%`;
-  const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE ? ORDER BY id ASC`;
+  const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id ASC`;
 
-  db.all(sql, [hoy], (err, movimientos) => {
+  try {
+    const resultado = await pool.query(sql, [hoy]);
+    const movimientos = resultado.rows;
+
     let vehiculosAdentro = 4;
     let plantaAdentro = 8;
     let cad1Adentro = 1;
@@ -285,21 +301,32 @@ app.get('/api/fuerza-presente', (req, res) => {
       cad3Presente: cad3Adentro,
       vehiculosPredio: vehiculosAdentro
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/configuracion/:clave', (req, res) => {
-  db.get(`SELECT valor FROM configuracion_guardia WHERE clave = ?`, [req.params.clave], (err, fila) => {
-    res.json({ valor: fila ? fila.valor : null });
-  });
+app.get('/api/configuracion/:clave', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT valor FROM configuracion_guardia WHERE clave = $1`, [req.params.clave]);
+    res.json({ valor: resultado.rows.length > 0 ? resultado.rows[0].valor : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.post('/api/configuracion', (req, res) => {
+app.post('/api/configuracion', async (req, res) => {
   const { clave, valor } = req.body;
-  const sql = `INSERT INTO configuracion_guardia (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor`;
-  db.run(sql, [clave, valor], function (err) {
-    res.json({ success: !err });
-  });
+  const sql = `
+    INSERT INTO configuracion_guardia (clave, valor) VALUES ($1, $2)
+    ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+  `;
+  try {
+    await pool.query(sql, [clave, valor]);
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

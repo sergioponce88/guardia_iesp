@@ -47,6 +47,18 @@ async function inicializarBaseDatos() {
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_2 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_2 TEXT;`);
 
+    // Tabla para registrar novedades y justificaciones diarias de cadetes
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS novedades_cadetes (
+        id SERIAL PRIMARY KEY,
+        persona_id INTEGER,
+        fecha TEXT,
+        estado TEXT, -- 'COMISION', 'ENFERMEDAD', 'AVISO', 'TARDE'
+        observacion TEXT,
+        registrado_por TEXT
+      )
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS libro_guardia (
         id SERIAL PRIMARY KEY,
@@ -212,6 +224,42 @@ app.get('/api/vehiculos', async (req, res) => {
     res.json(resultado.rows || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoints para Novedades de Cadetes
+app.get('/api/novedades-cadetes', async (req, res) => {
+  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  try {
+    const resultado = await pool.query(`SELECT * FROM novedades_cadetes WHERE fecha = $1`, [fecha]);
+    res.json(resultado.rows || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/novedades-cadetes', async (req, res) => {
+  const { persona_id, fecha, estado, observacion, registrado_por } = req.body;
+  const fechaHoy = fecha || new Date().toISOString().split('T')[0];
+  try {
+    // Upsert o inserción directa
+    await pool.query(`DELETE FROM novedades_cadetes WHERE persona_id = $1 AND fecha = $2`, [persona_id, fechaHoy]);
+    await pool.query(
+      `INSERT INTO novedades_cadetes (persona_id, fecha, estado, observacion, registrado_por) VALUES ($1, $2, $3, $4, $5)`,
+      [persona_id, fechaHoy, estado, observacion || '', registrado_por || 'Oficial de Guardia']
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/novedades-cadetes/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM novedades_cadetes WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

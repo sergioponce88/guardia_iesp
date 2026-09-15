@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <!-- BOTÓN CENTRAL DE ESCANEO QR (Estilo Billetera / Mercado Pago) -->
+    <!-- BOTÓN CENTRAL DE ESCANEO QR -->
     <div class="my-1 sm:my-0">
       <button onclick="iniciarCamaraQR()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center shadow-lg border border-blue-400/30 transition-all transform hover:scale-105">
         <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center mr-2">
@@ -109,7 +109,6 @@
             <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
           </div>
 
-          <!-- BOTÓN SCANNER CÁMARA RÁPIDO ADICIONAL -->
           <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 rounded text-xs flex items-center justify-center shadow transition-colors">
             <i class="fa-solid fa-camera mr-2 text-base"></i> Abrir Cámara para Escanear QR
           </button>
@@ -118,7 +117,6 @@
             <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
           </button>
 
-          <!-- Búsqueda con Dictado Rápido -->
           <div class="relative flex items-center">
             <input 
               type="text" 
@@ -157,6 +155,30 @@
               </div>
             </div>
 
+            <!-- Sección Celular y WhatsApp -->
+            <div class="pt-2 border-t border-slate-200 space-y-1.5 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-500 font-bold uppercase text-[10px]">CELULAR / WHATSAPP:</span>
+                <span id="persona-celular" class="font-mono text-slate-700">S/D</span>
+              </div>
+              <a id="btn-whatsapp-cadete" href="#" target="_blank" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1 rounded text-center text-[11px] block shadow-sm transition-colors">
+                <i class="fa-brands fa-whatsapp mr-1.5"></i> Enviar WhatsApp Directo
+              </a>
+
+              <!-- Contactos de Emergencia (Familiares) -->
+              <div class="bg-amber-50 border border-amber-200 rounded p-2 space-y-1 mt-1">
+                <span class="text-[10px] font-bold text-amber-800 uppercase block"><i class="fa-solid fa-phone-volume mr-1"></i> Familiares (Emergencias)</span>
+                <div class="flex justify-between items-center text-[11px]">
+                  <span id="txt-fam-1" class="text-slate-700 truncate pr-2">1°: Sin registrar</span>
+                  <a id="btn-llamar-fam-1" href="#" class="text-blue-600 font-bold hover:underline whitespace-nowrap hidden">Llamar</a>
+                </div>
+                <div class="flex justify-between items-center text-[11px]">
+                  <span id="txt-fam-2" class="text-slate-700 truncate pr-2">2°: Sin registrar</span>
+                  <a id="btn-llamar-fam-2" href="#" class="text-blue-600 font-bold hover:underline whitespace-nowrap hidden">Llamar</a>
+                </div>
+              </div>
+            </div>
+
             <div id="badge-estado" class="bg-slate-200/70 text-slate-700 rounded px-2 py-1 text-[11px] font-semibold flex items-center">
               <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span> FUERA DEL INSTITUTO
             </div>
@@ -175,7 +197,6 @@
                   <i class="fa-solid fa-unlink"></i>
                 </button>
               </div>
-              <!-- BOTÓN EXPLÍCITO PARA GUARDAR Y CONFIRMAR VINCULACIÓN QR -->
               <button id="btn-confirmar-qr" onclick="confirmarYGuardarVinculacion()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs mt-1 shadow-sm transition-colors">
                 <i class="fa-solid fa-check-circle mr-1"></i> Confirmar y Guardar Vinculación
               </button>
@@ -189,7 +210,7 @@
               </a>
             </div>
 
-            <!-- Selector de Puesto reubicado exactamente a continuación -->
+            <!-- Selector de Puesto -->
             <div class="pt-2 border-t border-slate-200 space-y-1">
               <label class="text-[10px] uppercase font-bold text-slate-500 block">PUESTO DE CONTROL ACTIVO:</label>
               <div class="flex items-center bg-white border border-slate-300 rounded px-2 py-1 text-xs">
@@ -314,26 +335,20 @@
     </div>
   </div>
 
-  <!-- MODAL DE CONFIRMACIÓN VISUAL TÁCTICA POST-MOVIMIENTO -->
+  <!-- MODAL DE CONFIRMACIÓN VISUAL TÁCTICA -->
   <div id="modal-confirmacion-visual" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center relative border-4 border-slate-900">
       <div id="badge-resultado-mov" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1">
         REGISTRO EXITOSO
       </div>
-      
-      <!-- Foto Grande del Efectivo -->
       <div class="w-32 h-32 mx-auto bg-slate-200 rounded-lg border-4 border-slate-300 overflow-hidden shadow-md flex items-center justify-center">
         <img id="img-visual-foto" src="" alt="Foto Oficial" class="w-full h-full object-cover" />
       </div>
-
-      <!-- Datos Identificatorios -->
       <div class="space-y-1">
         <h3 id="txt-visual-nombre" class="font-bold text-slate-900 text-sm uppercase">APELLIDO Y NOMBRE</h3>
         <p id="txt-visual-jerarquia" class="text-xs text-slate-600 font-semibold">Jerarquía / Rol</p>
         <p id="txt-visual-chapa" class="text-xs text-blue-600 font-mono font-bold">N° Legajo: S/D</p>
       </div>
-
-      <!-- Hora y Puesto del Movimiento -->
       <div class="bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 text-left">
         <div class="flex justify-between">
           <span class="text-slate-500 font-medium">Acción:</span>
@@ -348,7 +363,6 @@
           <span id="txt-visual-puesto" class="font-bold text-slate-800">Puesto 1</span>
         </div>
       </div>
-
       <button onclick="cerrarModalVisual()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg text-xs shadow transition-colors">
         ACEPTAR Y CONTINUAR
       </button>
@@ -364,14 +378,12 @@
         </h3>
         <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
       </div>
-      
       <div class="flex gap-2">
         <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="flex-1 border rounded p-2 text-xs outline-none" />
         <button onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
           <i class="fa-solid fa-user-plus mr-1.5"></i> Agregar Nuevo
         </button>
       </div>
-
       <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
@@ -391,7 +403,7 @@
     </div>
   </div>
 
-  <!-- Modal Control de Asistencia - Compañía de Cadetes (Con Alerta de Ausentes) -->
+  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
   <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-5xl w-full space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -400,8 +412,6 @@
         </h3>
         <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
       </div>
-
-      <!-- Filtros por Curso y Contadores con Alerta de Ausentes -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
           <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 1° Año</span>
@@ -422,8 +432,6 @@
           <button onclick="filtrarCursoCadetes('Cadete 3° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">3°</button>
         </div>
       </div>
-
-      <!-- Tabla de Cadetes -->
       <div class="max-h-96 overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
@@ -438,7 +446,6 @@
           <tbody id="tabla-asistencia-cadetes" class="divide-y divide-slate-200"></tbody>
         </table>
       </div>
-
       <div class="flex justify-end">
         <button onclick="cerrarModalCadetes()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
       </div>
@@ -462,11 +469,11 @@
     </div>
   </div>
 
-  <!-- Modal Editar Datos Personales -->
+  <!-- Modal Editar Datos Personales (Incluye Celular y Familiares) -->
   <div id="modal-editar-persona" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i> Editar Datos Personales
+    <div class="bg-white rounded-lg p-5 max-w-lg w-full space-y-3 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center border-b pb-2">
+        <i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i> Editar Datos Personales y Contactos
       </h3>
       <div class="grid grid-cols-2 gap-2">
         <div>
@@ -486,7 +493,28 @@
         <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
         <input type="text" id="edit-jerarquia" class="w-full border rounded p-1.5 text-xs" />
       </div>
-      <div class="flex justify-end space-x-2 pt-2">
+      <div>
+        <label class="text-[11px] text-slate-500 block">Número de Celular (WhatsApp)</label>
+        <input type="text" id="edit-celular" class="w-full border rounded p-1.5 text-xs font-mono" placeholder="Ej: 3814000000" />
+      </div>
+      <div class="border-t pt-2 space-y-2">
+        <span class="text-xs font-bold text-slate-700 block"><i class="fa-solid fa-phone-volume text-amber-600 mr-1"></i> Contactos de Emergencia (Familiares)</span>
+        <div class="grid grid-cols-2 gap-2 bg-amber-50 p-2 rounded border border-amber-200">
+          <div>
+            <label class="text-[10px] text-slate-600 font-bold block">Familiar 1 Nombre</label>
+            <input type="text" id="edit-fam1-nombre" class="w-full border rounded p-1 text-[11px] mb-1 bg-white" placeholder="Ej: Padre / Madre" />
+            <label class="text-[10px] text-slate-600 font-bold block">Teléfono 1</label>
+            <input type="text" id="edit-fam1-tel" class="w-full border rounded p-1 text-[11px] font-mono bg-white" placeholder="Ej: 3815000000" />
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-600 font-bold block">Familiar 2 Nombre</label>
+            <input type="text" id="edit-fam2-nombre" class="w-full border rounded p-1 text-[11px] mb-1 bg-white" placeholder="Ej: Tutor / Familiar" />
+            <label class="text-[10px] text-slate-600 font-bold block">Teléfono 2</label>
+            <input type="text" id="edit-fam2-tel" class="w-full border rounded p-1 text-[11px] font-mono bg-white" placeholder="Ej: 3816000000" />
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t">
         <button onclick="cerrarModalEditarPersona()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
         <button onclick="guardarEdicionPersona()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded text-xs">Guardar Cambios</button>
       </div>
@@ -843,6 +871,58 @@
       document.getElementById('persona-sub').innerText = jer;
       document.getElementById('persona-det').innerText = `DNI: ${doc} | N° de Legajo: ${chp}`;
       
+      // Mostrar Celular y WhatsApp
+      const celular = p.celular || '';
+      const celSpan = document.getElementById('persona-celular');
+      const btnWa = document.getElementById('btn-whatsapp-cadete');
+      
+      if (celular) {
+        celSpan.innerText = celular;
+        let numClean = celular.replace(/\D/g, '');
+        if (!numClean.startsWith('54')) numClean = '549' + numClean;
+        btnWa.href = `https://api.whatsapp.com/send?phone=${numClean}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20I.E.S.P.`;
+        btnWa.classList.remove('hidden');
+      } else {
+        celSpan.innerText = 'S/D';
+        btnWa.classList.add('hidden');
+      }
+
+      // Contactos de Familiares
+      const fam1Nom = p.familiar_nombre_1 || '';
+      const fam1Tel = p.familiar_telefono_1 || '';
+      const fam2Nom = p.familiar_nombre_2 || '';
+      const fam2Tel = p.familiar_telefono_2 || '';
+
+      const txtFam1 = document.getElementById('txt-fam-1');
+      const btnFam1 = document.getElementById('btn-llamar-fam-1');
+      if (fam1Nom || fam1Tel) {
+        txtFam1.innerText = `1°: ${fam1Nom ? fam1Nom + ': ' : ''}${fam1Tel || 'S/Tel'}`;
+        if (fam1Tel) {
+          btnFam1.href = `tel:${fam1Tel}`;
+          btnFam1.classList.remove('hidden');
+        } else {
+          btnFam1.classList.add('hidden');
+        }
+      } else {
+        txtFam1.innerText = '1°: Sin registrar';
+        btnFam1.classList.add('hidden');
+      }
+
+      const txtFam2 = document.getElementById('txt-fam-2');
+      const btnFam2 = document.getElementById('btn-llamar-fam-2');
+      if (fam2Nom || fam2Tel) {
+        txtFam2.innerText = `2°: ${fam2Nom ? fam2Nom + ': ' : ''}${fam2Tel || 'S/Tel'}`;
+        if (fam2Tel) {
+          btnFam2.href = `tel:${fam2Tel}`;
+          btnFam2.classList.remove('hidden');
+        } else {
+          btnFam2.classList.add('hidden');
+        }
+      } else {
+        txtFam2.innerText = '2°: Sin registrar';
+        btnFam2.classList.add('hidden');
+      }
+
       if (p.id) {
         document.getElementById('btn-editar-persona').classList.remove('hidden');
       } else {
@@ -917,6 +997,12 @@
       document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
       document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
       document.getElementById('persona-det').innerText = 'DNI / N° de Legajo';
+      document.getElementById('persona-celular').innerText = 'S/D';
+      document.getElementById('btn-whatsapp-cadete').classList.add('hidden');
+      document.getElementById('txt-fam-1').innerText = '1°: Sin registrar';
+      document.getElementById('btn-llamar-fam-1').classList.add('hidden');
+      document.getElementById('txt-fam-2').innerText = '2°: Sin registrar';
+      document.getElementById('btn-llamar-fam-2').classList.add('hidden');
       document.getElementById('foto-persona').src = placeholderSvg;
       document.getElementById('btn-credencial').classList.add('hidden');
       document.getElementById('btn-desvincular-qr').classList.add('hidden');
@@ -1018,7 +1104,6 @@
         });
         const dataRes = await res.json();
         
-        // Mostrar pantalla visual táctica de confirmación
         mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
 
         limpiarSeleccion();
@@ -1227,7 +1312,6 @@
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
 
-    // FUNCIONES PANEL ASISTENCIA CADETES CON ALERTA DE AUSENTES
     async function abrirModalCadetes() {
       try {
         const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
@@ -1383,8 +1467,14 @@
       document.getElementById('edit-chapa').value = personaSeleccionada.cargo_chapa || personaSeleccionada.chapa || '';
       document.getElementById('edit-nombre').value = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
       document.getElementById('edit-jerarquia').value = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
+      document.getElementById('edit-celular').value = personaSeleccionada.celular || '';
+      document.getElementById('edit-fam1-nombre').value = personaSeleccionada.familiar_nombre_1 || '';
+      document.getElementById('edit-fam1-tel').value = personaSeleccionada.familiar_telefono_1 || '';
+      document.getElementById('edit-fam2-nombre').value = personaSeleccionada.familiar_nombre_2 || '';
+      document.getElementById('edit-fam2-tel').value = personaSeleccionada.familiar_telefono_2 || '';
       document.getElementById('modal-editar-persona').classList.remove('hidden');
     }
+    
     function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
 
     async function guardarEdicionPersona() {
@@ -1392,6 +1482,11 @@
       const cargo_chapa = document.getElementById('edit-chapa').value.trim();
       const nombre_completo = document.getElementById('edit-nombre').value.trim().toUpperCase();
       const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
+      const celular = document.getElementById('edit-celular').value.trim();
+      const familiar_nombre_1 = document.getElementById('edit-fam1-nombre').value.trim();
+      const familiar_telefono_1 = document.getElementById('edit-fam1-tel').value.trim();
+      const familiar_nombre_2 = document.getElementById('edit-fam2-nombre').value.trim();
+      const familiar_telefono_2 = document.getElementById('edit-fam2-tel').value.trim();
 
       if (!nombre_completo) {
         alert('El Apellido y Nombre son obligatorios.');
@@ -1402,24 +1497,30 @@
 
       try {
         let respuesta;
+        const payloadData = { 
+          dni, cargo_chapa, nombre_completo, jerarquia_rol, 
+          celular, familiar_nombre_1, familiar_telefono_1, 
+          familiar_nombre_2, familiar_telefono_2 
+        };
+
         if (idReal) {
           respuesta = await fetch(`/api/personas/${idReal}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
+            body: JSON.stringify(payloadData)
           });
         } else {
           respuesta = await fetch('/api/personas', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dni, cargo_chapa, nombre_completo, jerarquia_rol })
+            body: JSON.stringify(payloadData)
           });
         }
 
         const resultado = await respuesta.json();
         if (resultado.success) {
           cerrarModalEditarPersona();
-          alert('¡Modificación guardada con éxito!');
+          alert('¡Modificación y contactos guardados con éxito!');
           
           const idBuscado = idReal || resultado.id;
           if (idBuscado) {
@@ -1444,6 +1545,7 @@
       document.getElementById('vehiculo-patente-input').value = personaSeleccionada.patente_detectada || '';
       document.getElementById('modal-vehiculo').classList.remove('hidden');
     }
+    
     function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
     
     async function guardarVehiculoPersona() {
@@ -1507,13 +1609,16 @@
         console.error(err);
       }
     }
+    
     function cerrarModalListaVehiculos() { document.getElementById('modal-lista-vehiculos').classList.add('hidden'); }
 
     function abrirModalOficial() {
       document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
       document.getElementById('modal-oficial').classList.remove('hidden');
     }
+    
     function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
+    
     async function guardarOficialServicio() {
       const val = document.getElementById('input-oficial-nombre').value.trim();
       if (!val) return;
@@ -1528,6 +1633,7 @@
 
     function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
     function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
+    
     async function guardarNuevoIntegrante() {
       const dni = document.getElementById('nuevo-dni').value.trim();
       const nombre_completo = document.getElementById('nuevo-nombre').value.trim();

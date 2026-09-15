@@ -403,27 +403,50 @@
     </div>
   </div>
 
-  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
+  <!-- Modal Control de Asistencia - Compañía de Cadetes (Con Horario Tope y Envío a Jefaturas) -->
   <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-5xl w-full space-y-4 shadow-xl">
+    <div class="bg-white rounded-lg p-5 max-w-6xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-slate-800 text-sm flex items-center">
           <i class="fa-solid fa-graduation-cap text-purple-600 mr-2"></i> Control de Asistencia - Compañía de Cadetes (1°, 2° y 3° Año)
         </h3>
         <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
       </div>
+
+      <!-- Barra de Configuración de Hora Tope y Aviso a Jefaturas -->
+      <div class="bg-slate-50 border border-slate-200 p-3 rounded flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-2">
+          <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-stopwatch text-amber-600 mr-1"></i> Hora Tope de Ingreso:</label>
+          <input type="time" id="input-hora-tope" class="border rounded px-2 py-1 text-xs font-mono font-bold bg-white" value="07:00" />
+          <button onclick="guardarHoraTope()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded text-xs font-semibold">Fijar Hora</button>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <select id="sel-destino-parte" class="border rounded px-2 py-1 text-xs bg-white font-medium">
+            <option value="Secretaría Académica">Secretaría Académica</option>
+            <option value="Jefatura de Cuerpo">Jefatura de Cuerpo</option>
+            <option value="Jefatura de Compañía">Jefatura de Compañía</option>
+            <option value="Grupo de Trabajo / Superior">Grupo de Trabajo / Superior</option>
+          </select>
+          <button onclick="enviarParteAusentesWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow">
+            <i class="fa-brands fa-whatsapp mr-1.5"></i> Enviar Parte de Ausentes / Novedades
+          </button>
+        </div>
+      </div>
+
+      <!-- Contadores Resumen -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 1° Año</span>
-          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
+        <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-emerald-800 block">Cadetes 1° Año</span>
+          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
         </div>
-        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 2° Año</span>
-          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
+        <div class="bg-purple-50 border border-purple-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-purple-800 block">Cadetes 2° Año</span>
+          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
         </div>
-        <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 3° Año</span>
-          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
+        <div class="bg-indigo-50 border border-indigo-200 p-2.5 rounded text-center">
+          <span class="text-[10px] uppercase font-bold text-indigo-800 block">Cadetes 3° Año</span>
+          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
         </div>
         <div class="flex items-center justify-center space-x-1">
           <button onclick="filtrarCursoCadetes('TODOS')" class="bg-slate-800 text-white px-2.5 py-1.5 rounded text-xs font-semibold">Todos</button>
@@ -432,22 +455,55 @@
           <button onclick="filtrarCursoCadetes('Cadete 3° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">3°</button>
         </div>
       </div>
-      <div class="max-h-96 overflow-y-auto custom-scroll border rounded">
+
+      <!-- Tabla de Cadetes con Acciones de Novedad y Contacto -->
+      <div class="max-h-[50vh] overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
             <tr>
-              <th class="p-2">Curso / Jerarquía</th>
-              <th class="p-2">N° Legajo</th>
+              <th class="p-2">Curso</th>
+              <th class="p-2">Legajo</th>
               <th class="p-2">Apellido y Nombre</th>
-              <th class="p-2 text-center">Estado Actual</th>
-              <th class="p-2 text-center">Último Movimiento / Hora</th>
+              <th class="p-2 text-center">Estado / Asistencia</th>
+              <th class="p-2 text-center">Último Ingreso</th>
+              <th class="p-2 text-center">Acciones y Novedades</th>
             </tr>
           </thead>
           <tbody id="tabla-asistencia-cadetes" class="divide-y divide-slate-200"></tbody>
         </table>
       </div>
+
       <div class="flex justify-end">
         <button onclick="cerrarModalCadetes()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Novedad / Justificación a Cadete -->
+  <div id="modal-novedad-cadete" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
+      <h3 class="font-bold text-slate-800 text-sm flex items-center border-b pb-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-2"></i> Registrar Novedad / Justificación
+      </h3>
+      <div>
+        <span id="novedad-cadete-nombre" class="font-bold text-xs text-slate-700 block mb-2">CADETE: PEREZ, JUAN</span>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block mb-1">Estado / Motivo</label>
+        <select id="novedad-estado-select" class="w-full border rounded p-1.5 text-xs bg-white font-semibold">
+          <option value="COMISION">Comisión Oficial</option>
+          <option value="ENFERMEDAD">Enfermedad / Parte Médico</option>
+          <option value="AVISO">Aviso Telefónico (Justificado)</option>
+          <option value="AUSENTE">Ausente Injustificado</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] text-slate-500 block mb-1">Observaciones / Detalle</label>
+        <textarea id="novedad-observacion" rows="3" class="w-full border rounded p-1.5 text-xs outline-none" placeholder="Ej: Autorizado por Jefatura de Cuerpo / Llamó el padre avisando..."></textarea>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="cerrarModalNovedad()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
+        <button onclick="guardarNovedadCadete()" class="px-4 py-1.5 bg-amber-600 text-white font-bold rounded text-xs">Guardar Novedad</button>
       </div>
     </div>
   </div>
@@ -636,6 +692,8 @@
     let streamVideo = null;
     let scanInterval = null;
     let qrEscaneadoTemporal = null;
+    let cadeteSeleccionadoParaNovedad = null;
+    let horaTopeGlobal = "07:00";
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -669,6 +727,32 @@
       cargarLibro();
       cargarFuerza();
       cargarOficialServicio();
+      cargarConfiguracionHoraTope();
+    }
+
+    async function cargarConfiguracionHoraTope() {
+      try {
+        const res = await fetch(`/api/configuracion/hora_tope_ingreso?_=${Date.now()}`);
+        const d = await res.json();
+        if (d && d.valor) {
+          horaTopeGlobal = d.valor;
+          const inputTope = document.getElementById('input-hora-tope');
+          if (inputTope) inputTope.value = horaTopeGlobal;
+        }
+      } catch (e) {}
+    }
+
+    async function guardarHoraTope() {
+      const val = document.getElementById('input-hora-tope').value;
+      if (!val) return;
+      await fetch('/api/configuracion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clave: 'hora_tope_ingreso', valor: val })
+      });
+      horaTopeGlobal = val;
+      alert(`¡Hora tope fijada correctamente a las ${val} hs!`);
+      abrirModalCadetes();
     }
 
     function iniciarBusquedaPorVoz() {
@@ -1328,6 +1412,7 @@
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
 
+    // GESTIÓN AVANZADA DE ASISTENCIA Y NOVEDADES DE CADETES
     async function abrirModalCadetes() {
       try {
         const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
@@ -1337,28 +1422,31 @@
         const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
         const movimientos = await resLibro.json();
 
+        const resNovedades = await fetch(`/api/novedades-cadetes?fecha=${fechaHoy}&_=${Date.now()}`);
+        const novedades = await resNovedades.json();
+
         cadetesGlobal = personal.filter(p => {
           const jer = (p.jerarquia_rol || '').toLowerCase();
           return jer.includes('cadete');
         });
 
-        renderizarTablaCadetes(cadetesGlobal, movimientos);
+        renderizarTablaCadetes(cadetesGlobal, movimientos, novedades);
         document.getElementById('modal-cadetes').classList.remove('hidden');
       } catch (err) {
         console.error("Error al abrir panel de cadetes:", err);
       }
     }
 
-    function renderizarTablaCadetes(listaCadetes, movimientos) {
+    function renderizarTablaCadetes(listaCadetes, movimientos, novedades) {
       const tbody = document.getElementById('tabla-asistencia-cadetes');
       tbody.innerHTML = '';
 
-      let c1Total = 0, c1Presentes = 0, c1Ausentes = 0;
-      let c2Total = 0, c2Presentes = 0, c2Ausentes = 0;
-      let c3Total = 0, c3Presentes = 0, c3Ausentes = 0;
+      let c1Total = 0, c1Ausentes = 0;
+      let c2Total = 0, c2Ausentes = 0;
+      let c3Total = 0, c3Ausentes = 0;
 
       if (!listaCadetes || listaCadetes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
         return;
       }
 
@@ -1366,32 +1454,75 @@
         const jer = cad.jerarquia_rol || '';
         const nom = cad.nombre_completo || cad.nombre || '';
         const chp = cad.cargo_chapa || cad.chapa || 'S/D';
+        const cel = cad.celular || '';
+        const fam1Tel = cad.familiar_telefono_1 || '';
 
         const ultimoMov = movimientos.find(m => m.protagonista.includes(nom));
-        let estadoTxt = 'EN INSTITUTO (PRESENTE)';
-        let badgeClase = 'bg-emerald-100 text-emerald-800';
-        let horaMov = 'Sin registros hoy';
-        let estaFuera = false;
+        const novedadReg = (novedades || []).find(n => n.persona_id === cad.id);
 
-        if (ultimoMov) {
+        let estadoTxt = 'PRESENTE (A TIEMPO)';
+        let badgeClase = 'bg-emerald-100 text-emerald-800 font-bold';
+        let horaMov = 'Sin registrar';
+        let esAusente = false;
+
+        if (novedreg = novedadReg) {
+          if (novedreg.estado === 'COMISION') {
+            estadoTxt = 'EN COMISIÓN';
+            badgeClase = 'bg-blue-100 text-blue-800 font-bold';
+            horaMov = novedreg.observacion || 'Justificado';
+          } else if (novedreg.estado === 'ENFERMEDAD') {
+            estadoTxt = 'ENFERMEDAD / PARTE';
+            badgeClase = 'bg-amber-100 text-amber-800 font-bold';
+            horaMov = novedreg.observacion || 'Licencia médica';
+          } else if (novedreg.estado === 'AVISO') {
+            estadoTxt = 'AVISO TELEFÓNICO';
+            badgeClase = 'bg-indigo-100 text-indigo-800 font-bold';
+            horaMov = novedreg.observacion || 'Aviso previo';
+          } else if (novedreg.estado === 'AUSENTE') {
+            estadoTxt = 'AUSENTE INJUSTIFICADO';
+            badgeClase = 'bg-rose-100 text-rose-800 font-bold';
+            esAusente = true;
+          }
+        } else if (ultimoMov) {
           horaMov = `${ultimoMov.hora} (${ultimoMov.puesto})`;
           if (ultimoMov.accion && ultimoMov.accion.includes('EGRESO')) {
-            estadoTxt = 'FUERA DEL INSTITUTO (AUSENTE)';
+            estadoTxt = 'FUERA DEL PREDIO';
+            badgeClase = 'bg-slate-200 text-slate-700';
+          } else if (ultimoMov.accion && ultimoMov.accion.includes('INGRESO')) {
+            // Comparar con hora tope
+            if (ultimoMov.hora > horaTopeGlobal) {
+              estadoTxt = `TARDE (${ultimoMov.hora})`;
+              badgeClase = 'bg-orange-100 text-orange-800 font-bold';
+            }
+          }
+        } else {
+          // Si no tiene movimientos y pasó la hora tope
+          const horaActualStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+          if (horaActualStr > horaTopeGlobal) {
+            estadoTxt = 'AUSENTE';
             badgeClase = 'bg-rose-100 text-rose-800 font-bold';
-            estaFuera = true;
+            esAusente = true;
+          } else {
+            estadoTxt = 'PENDIENTE DE INGRESO';
+            badgeClase = 'bg-slate-100 text-slate-600';
           }
         }
 
         if (jer.includes('1°')) {
           c1Total++;
-          if (estaFuera) c1Ausentes++; else c1Presentes++;
+          if (esAusente) c1Ausentes++;
         } else if (jer.includes('2°')) {
           c2Total++;
-          if (estaFuera) c2Ausentes++; else c2Presentes++;
+          if (esAusente) c2Ausentes++;
         } else if (jer.includes('3°')) {
           c3Total++;
-          if (estaFuera) c3Ausentes++; else c3Presentes++;
+          if (esAusente) c3Ausentes++;
         }
+
+        // Botones de llamada / whatsapp rápido
+        let waLinkCadete = cel ? `https://api.whatsapp.com/send?phone=${cel.replace(/\D/g, '')}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20IESP.` : '#';
+        let callLinkCadete = cel ? `tel:${cel}` : '#';
+        let callLinkFam = fam1Tel ? `tel:${fam1Tel}` : '#';
 
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50">
@@ -1399,26 +1530,116 @@
             <td class="p-2 font-mono text-purple-600 font-bold">${chp}</td>
             <td class="p-2 font-bold text-slate-800">${nom}</td>
             <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClase}">${estadoTxt}</span></td>
-            <td class="p-2 text-center text-slate-500 font-mono">${horaMov}</td>
+            <td class="p-2 text-center text-slate-600 font-mono">${horaMov}</td>
+            <td class="p-2 text-center space-x-1 whitespace-nowrap">
+              ${cel ? `<a href="${waLinkCadete}" target="_blank" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px]" title="WhatsApp Cadete"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+              ${cel ? `<a href="${callLinkCadete}" class="bg-blue-600 text-white px-2 py-1 rounded text-[10px]" title="Llamar Cadete"><i class="fa-solid fa-phone"></i></a>` : ''}
+              ${fam1Tel ? `<a href="${callLinkFam}" class="bg-amber-600 text-white px-2 py-1 rounded text-[10px]" title="Llamar Familiar"><i class="fa-solid fa-phone-volume"></i></a>` : ''}
+              <button onclick='abrirModalNovedad(${JSON.stringify(cad)})' class="bg-slate-800 hover:bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Justificar / Novedad">Novedad</button>
+            </td>
           </tr>
         `;
       });
 
-      document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c1Ausentes}</span>`;
-      document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c2Ausentes}</span>`;
-      document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c3Ausentes}</span>`;
+      document.getElementById('stat-cad1').innerHTML = `${c1Total - c1Ausentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
+      document.getElementById('stat-cad2').innerHTML = `${c2Total - c2Ausentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
+      document.getElementById('stat-cad3').innerHTML = `${c3Total - c3Ausentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;
+    }
+
+    function abrirModalNovedad(cad) {
+      cadeteSeleccionadoParaNovedad = cad;
+      document.getElementById('novedad-cadete-nombre').innerText = `CADETE: ${cad.nombre_completo || cad.nombre} (${cad.jerarquia_rol})`;
+      document.getElementById('novedad-observacion').value = '';
+      document.getElementById('modal-novedad-cadete').classList.remove('hidden');
+    }
+
+    function cerrarModalNovedad() {
+      document.getElementById('modal-novedad-cadete').classList.add('hidden');
+    }
+
+    async function guardarNovedadCadete() {
+      if (!cadeteSeleccionadoParaNovedad) return;
+      const estado = document.getElementById('novedad-estado-select').value;
+      const observacion = document.getElementById('novedad-observacion').value.trim();
+      const fecha = document.getElementById('filtro-fecha').value;
+
+      try {
+        await fetch('/api/novedades-cadetes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona_id: cadeteSeleccionadoParaNovedad.id,
+            fecha,
+            estado,
+            observacion,
+            registrado_por: document.getElementById('txt-oficial-servicio').innerText
+          })
+        });
+
+        cerrarModalNovedad();
+        alert('¡Novedad registrada con éxito!');
+        abrirModalCadetes();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function enviarParteAusentesWhatsApp() {
+      const destino = document.getElementById('sel-destino-parte').value;
+      const fecha = document.getElementById('filtro-fecha').value;
+      const oficial = document.getElementById('txt-oficial-servicio').innerText;
+
+      try {
+        const resPers = await fetch(`/api/personal-completo?_=${Date.now()}`);
+        const personal = await resPers.json();
+        const resNov = await fetch(`/api/novedades-cadetes?fecha=${fecha}&_=${Date.now()}`);
+        const novedades = await resNov.json();
+        const resLibro = await fetch(`/api/libro-guardia?fecha=${fecha}&_=${Date.now()}`);
+        const movimientos = await resLibro.json();
+
+        const cadetes = personal.filter(p => (p.jerarquia_rol || '').toLowerCase().includes('cadete'));
+
+        let mensaje = `*PARTE DE ASISTENCIA Y NOVEDADES DE CADETES*\n`;
+        mensaje += `*Instituto:* I.E.S.P. Gral. San Martín\n`;
+        mensaje += `*Fecha:* ${fecha} | *Hora Tope:* ${horaTopeGlobal} hs\n`;
+        mensaje += `*Oficial de Servicio:* ${oficial}\n`;
+        mensaje += `*Destinatario:* ${destino}\n\n`;
+
+        let conNovedades = 0;
+        cadetes.forEach((cad, idx) => {
+          const nov = novedades.find(n => n.persona_id === cad.id);
+          const mov = movimientos.find(m => m.protagonista.includes(cad.nombre_completo || cad.nombre));
+
+          if (nov || !mov) {
+            conNovedades++;
+            let estadoDesc = nov ? nov.estado : 'AUSENTE SIN AVISO';
+            let detalle = nov ? nov.observacion : 'Sin registrar ingreso';
+            mensaje += `${conNovedades}. *${cad.nombre_completo || cad.nombre}* (${cad.jerarquia_rol}) - [_${estadoDesc}_]: ${detalle}\n`;
+          }
+        });
+
+        if (conNovedades === 0) {
+          mensaje += `_Sin novedades ni ausencias registradas. Plantel completo._\n`;
+        }
+
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     async function filtrarCursoCadetes(curso) {
       const fechaHoy = document.getElementById('filtro-fecha').value;
       const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
       const movimientos = await resLibro.json();
+      const resNov = await fetch(`/api/novedades-cadetes?fecha=${fechaHoy}&_=${Date.now()}`);
+      const novedades = await resNov.json();
 
       if (curso === 'TODOS') {
-        renderizarTablaCadetes(cadetesGlobal, movimientos);
+        renderizarTablaCadetes(cadetesGlobal, movimientos, novedades);
       } else {
         const filtrados = cadetesGlobal.filter(c => (c.jerarquia_rol || '').includes(curso));
-        renderizarTablaCadetes(filtrados, movimientos);
+        renderizarTablaCadetes(filtrados, movimientos, novedades);
       }
     }
 

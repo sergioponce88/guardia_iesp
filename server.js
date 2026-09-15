@@ -2,6 +2,8 @@ const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
 const axios = require('axios');
+const fs = require('fs');
+const XLSX = require('xlsx');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,7 +18,7 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Inicialización de tablas en la nube
+// Inicialización de tablas e importación automática de planillas
 async function inicializarBaseDatos() {
   try {
     await pool.query(`
@@ -57,8 +59,70 @@ async function inicializarBaseDatos() {
       )
     `);
     console.log('Tablas verificadas y creadas exitosamente en PostgreSQL.');
+
+    // Verificar si la tabla de personas está vacía para importar automáticamente los Excel
+    const resConteo = await pool.query(`SELECT COUNT(*) FROM personas`);
+    const totalPersonas = parseInt(resConteo.rows[0].count);
+
+    if (totalPersonas === 0) {
+      console.log('Base de datos vacía detectada. Iniciando importación automática de planillas...');
+
+      // 1. Importar Cadetes
+      const archivoCadetes = 'LISTADO DE COMPAÑIA DE CADETES AÑO 2026 PARA D1.xlsx';
+      if (fs.existsSync(archivoCadetes)) {
+        const workbook = XLSX.readFile(archivoCadetes);
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+        for (const row of rows) {
+          const apellido = String(row['APELLIDO'] || '').trim();
+          const nombres = String(row['NOMBRES'] || '').trim();
+          const nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
+          const dni = String(row['DNI'] || 'S/D').trim();
+          const cargoChapa = String(row['CARGO'] || 'S/D').trim();
+          const curso = String(row['CURSO'] || '').trim();
+          const jerarquiaRol = curso ? `Cadete ${curso}` : 'Cadete';
+
+          if (nombreCompleto !== ',') {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ($1, $2, $3, $4)`,
+              [dni, nombreCompleto, jerarquiaRol, cargoChapa]
+            );
+          }
+        }
+        console.log(`> Importados ${rows.length} cadetes exitosamente.`);
+      }
+
+      // 2. Importar LEO IESP
+      const archivoLeo = 'LEO IESP.xlsx';
+      if (fs.existsSync(archivoLeo)) {
+        const fileBuffer = fs.readFileSync(archivoLeo);
+        const textContent = fileBuffer.toString('utf8');
+        const idx = textContent.indexOf('ROLL DE COMBATE');
+        
+        if (idx !== -1) {
+          const regex = /"([^"]+)",([^,]+),([^,]+),([^\"]+?)(?="[A-ZÁÉÍÓÚÑa-zñ\s\.,-]+",[A-Z]|$)/g;
+          let match;
+          let count = 0;
+
+          while ((match = regex.exec(textContent)) !== null) {
+            const nombreCompleto = match[1].trim().toUpperCase();
+            const grado = match[2].trim();
+            const cargoChapa = match[3].trim();
+
+            if (nombreCompleto) {
+              await pool.query(
+                `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ($1, $2, $3, $4)`,
+                ['S/D', nombreCompleto, grado, cargoChapa]
+              );
+              count++;
+            }
+          }
+          console.log(`> Importados ${count} registros de LEO IESP exitosamente.`);
+        }
+      }
+    }
   } catch (err) {
-    console.error('Error al inicializar la base de datos:', err);
+    console.error('Error al inicializar o importar en la base de datos:', err);
   }
 }
 
@@ -138,7 +202,6 @@ app.get('/api/vehiculos', async (req, res) => {
   }
 });
 
-// RUTA PUT BLINDADA PARA QUE EL QR NO SE BORRE AL EDITAR DATOS
 app.put('/api/personas/:id', async (req, res) => {
   const { vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial } = req.body;
   const idPersona = req.params.id;
@@ -158,7 +221,6 @@ app.put('/api/personas/:id', async (req, res) => {
     const nuevaJerarquia = (jerarquia_rol !== undefined && jerarquia_rol !== '') ? jerarquia_rol : actual.jerarquia_rol;
     const nuevoChapa = (cargo_chapa !== undefined && cargo_chapa !== '') ? cargo_chapa : actual.cargo_chapa;
     
-    // Blindaje de credencial para preservar el QR actual si no se modifica expresamente
     let nuevaCredUrl = actual.credencial_url;
     let nuevoToken = actual.credencial_token;
     

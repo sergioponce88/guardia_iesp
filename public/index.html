@@ -12,25 +12,36 @@
     .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 text-sm">
+<body class="bg-slate-100 text-slate-800 text-sm pb-16">
 
   <!-- Header Superior -->
-  <header class="bg-slate-900 text-white px-4 py-2 flex flex-wrap items-center justify-between border-b border-slate-700 shadow">
+  <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-700 shadow-md">
     <div class="flex items-center space-x-3">
       <div>
         <h1 class="font-bold text-base leading-tight tracking-wide">I.E.S.P. "Gral. San Martín"</h1>
         <p class="text-xs text-slate-400">Control de Guardia</p>
       </div>
     </div>
-    <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+
+    <!-- BOTÓN CENTRAL DE ESCANEO QR (Estilo Billetera / Mercado Pago) -->
+    <div class="my-1 sm:my-0">
+      <button onclick="iniciarCamaraQR()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center shadow-lg border border-blue-400/30 transition-all transform hover:scale-105">
+        <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center mr-2">
+          <i class="fa-solid fa-qrcode text-white text-xs"></i>
+        </div>
+        <span>ESCANEAR QR</span>
+      </button>
+    </div>
+
+    <div class="flex items-center space-x-2">
       <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial de Servicio
+        <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial
       </button>
       <button onclick="abrirModalCadetes()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-graduation-cap mr-1.5"></i> Compañía Cadetes
+        <i class="fa-solid fa-graduation-cap mr-1.5"></i> Cadetes
       </button>
       <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-users mr-1.5"></i> Fuerza Efectiva
+        <i class="fa-solid fa-users mr-1.5"></i> Personal
       </button>
       <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-car mr-1.5"></i> Vehículos
@@ -98,8 +109,8 @@
             <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
           </div>
 
-          <!-- BOTÓN SCANNER CÁMARA REAL -->
-          <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 rounded text-xs flex items-center justify-center shadow transition-colors">
+          <!-- BOTÓN SCANNER CÁMARA RÁPIDO ADICIONAL -->
+          <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 rounded text-xs flex items-center justify-center shadow transition-colors">
             <i class="fa-solid fa-camera mr-2 text-base"></i> Abrir Cámara para Escanear QR
           </button>
 
@@ -339,7 +350,7 @@
     </div>
   </div>
 
-  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
+  <!-- Modal Control de Asistencia - Compañía de Cadetes (Con Alerta de Ausentes) -->
   <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-5xl w-full space-y-4 shadow-xl">
       <div class="flex justify-between items-center border-b pb-2">
@@ -349,19 +360,19 @@
         <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
       </div>
 
-      <!-- Filtros por Curso y Contadores -->
+      <!-- Filtros por Curso y Contadores con Alerta de Ausentes -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 1° Año Presentes</span>
-          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 0</p>
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 1° Año</span>
+          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
         </div>
         <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 2° Año Presentes</span>
-          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 0</p>
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 2° Año</span>
+          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
         </div>
         <div class="bg-slate-50 border border-slate-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 3° Año Presentes</span>
-          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 0</p>
+          <span class="text-[10px] uppercase font-bold text-slate-500 block">Cadetes 3° Año</span>
+          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 0 <span class="block text-[10px] text-rose-600 font-semibold">Faltan: 0</span></p>
         </div>
         <div class="flex items-center justify-center space-x-1">
           <button onclick="filtrarCursoCadetes('TODOS')" class="bg-slate-800 text-white px-2.5 py-1.5 rounded text-xs font-semibold">Todos</button>
@@ -1121,7 +1132,7 @@
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
 
-    // FUNCIONES PANEL ASISTENCIA CADETES
+    // FUNCIONES PANEL ASISTENCIA CADETES CON ALERTA DE AUSENTES
     async function abrirModalCadetes() {
       try {
         const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
@@ -1147,9 +1158,9 @@
       const tbody = document.getElementById('tabla-asistencia-cadetes');
       tbody.innerHTML = '';
 
-      let c1Total = 0, c1Presentes = 0;
-      let c2Total = 0, c2Presentes = 0;
-      let c3Total = 0, c3Presentes = 0;
+      let c1Total = 0, c1Presentes = 0, c1Ausentes = 0;
+      let c2Total = 0, c2Presentes = 0, c2Ausentes = 0;
+      let c3Total = 0, c3Presentes = 0, c3Ausentes = 0;
 
       if (!listaCadetes || listaCadetes.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
@@ -1165,41 +1176,42 @@
         let estadoTxt = 'EN INSTITUTO (PRESENTE)';
         let badgeClase = 'bg-emerald-100 text-emerald-800';
         let horaMov = 'Sin registros hoy';
+        let estaFuera = false;
 
         if (ultimoMov) {
           horaMov = `${ultimoMov.hora} (${ultimoMov.puesto})`;
           if (ultimoMov.accion && ultimoMov.accion.includes('EGRESO')) {
-            estadoTxt = 'FUERA DEL INSTITUTO';
-            badgeClase = 'bg-rose-100 text-rose-800';
-          } else {
-            if (jer.includes('1°')) c1Presentes++;
-            if (jer.includes('2°')) c2Presentes++;
-            if (jer.includes('3°')) c3Presentes++;
+            estadoTxt = 'FUERA DEL INSTITUTO (AUSENTE)';
+            badgeClase = 'bg-rose-100 text-rose-800 font-bold';
+            estaFuera = true;
           }
-        } else {
-          if (jer.includes('1°')) c1Presentes++;
-          if (jer.includes('2°')) c2Presentes++;
-          if (jer.includes('3°')) c3Presentes++;
         }
 
-        if (jer.includes('1°')) c1Total++;
-        if (jer.includes('2°')) c2Total++;
-        if (jer.includes('3°')) c3Total++;
+        if (jer.includes('1°')) {
+          c1Total++;
+          if (estaFuera) c1Ausentes++; else c1Presentes++;
+        } else if (jer.includes('2°')) {
+          c2Total++;
+          if (estaFuera) c2Ausentes++; else c2Presentes++;
+        } else if (jer.includes('3°')) {
+          c3Total++;
+          if (estaFuera) c3Ausentes++; else c3Presentes++;
+        }
 
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50">
             <td class="p-2 font-semibold text-slate-700">${jer}</td>
             <td class="p-2 font-mono text-purple-600 font-bold">${chp}</td>
             <td class="p-2 font-bold text-slate-800">${nom}</td>
-            <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClase}">${estadoTxt}</span></td>
+            <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClase}">${estadoTxt}</span></td>
             <td class="p-2 text-center text-slate-500 font-mono">${horaMov}</td>
           </tr>
         `;
       });
 
-      document.getElementById('stat-cad1').innerText = `${c1Presentes} / ${c1Total}`;
-      document.getElementById('stat-cad2').innerText = `${c2Presentes} / ${c2Total}`;
-      document.getElementById('stat-cad3').innerText = `${c3Presentes} / ${c3Total}`;
+      document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c1Ausentes}</span>`;
+      document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c2Ausentes}</span>`;
+      document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Faltan: ${c3Ausentes}</span>`;
     }
 
     async function filtrarCursoCadetes(curso) {

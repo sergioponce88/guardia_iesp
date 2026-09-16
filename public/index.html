@@ -1467,9 +1467,10 @@
 
     async function registrarMovimiento(tipo, modo) {
       if (!personaSeleccionada) {
-        alert('Seleccione una persona primero buscando por DNI, Apellido o escaneando su QR.');
+        alert('⚠️ Seleccione una persona primero buscando por DNI, Apellido o escaneando su QR.');
         return;
       }
+      
       const puesto = document.getElementById('sel-puesto').value;
       let accion = tipo;
       let detalle = modo;
@@ -1505,7 +1506,7 @@
           cargarLibro();
           cargarFuerza();
         } else {
-          alert('El servidor no pudo registrar el movimiento.');
+          alert('El servidor no pudo registrar el movimiento: ' + (dataRes.error || 'Desconocido'));
         }
       } catch (e) {
         console.error("Error al registrar movimiento:", e);
@@ -1568,9 +1569,6 @@
         const d = await res.json();
         if (d) {
           document.getElementById('f-planta').innerText = `${d.plantaPresente || 8} / 131`;
-          document.getElementById('f-cad1').innerText = `${d.cad1Presente || 1} / 102`;
-          document.getElementById('f-cad2').innerText = `${d.cad2Presente || 1} / 50`;
-          document.getElementById('f-cad3').innerText = `${d.cad3Presente || 1} / 74`;
           document.getElementById('f-vehiculos').innerText = d.vehiculosPredio || 4;
         }
       } catch (e) {
@@ -1748,7 +1746,7 @@
       let c2Total = 0, c2Ausentes = 0, c2Presentes = 0;
       let c3Total = 0, c3Ausentes = 0, c3Presentes = 0;
 
-      // Cálculo real y dinámico del total de cadetes según lo registrado en la base de datos
+      // Conteo dinámico y real extraído directamente de la base de datos
       cadetesGlobal.forEach(cad => {
         const jer = (cad.jerarquia_rol || '').toLowerCase();
         if (jer.includes('1°') || jer.includes('primer')) c1Total++;
@@ -1850,7 +1848,7 @@
         `;
       });
 
-      // Actualizar contadores reales tanto en el modal como en las tarjetas principales
+      // Actualizar totales y ausentes exactos
       document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
       document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
       document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;

@@ -117,33 +117,37 @@ async function inicializarBaseDatos() {
         console.log(`> Importados ${rows.length} cadetes exitosamente.`);
       }
 
-      // 2. Importar LEO IESP
+      // 2. Importar LEO IESP (Oficiales y Suboficiales)
       const archivoLeo = 'LEO IESP.xlsx';
       if (fs.existsSync(archivoLeo)) {
-        const fileBuffer = fs.readFileSync(archivoLeo);
-        const textContent = fileBuffer.toString('utf8');
-        const idx = textContent.indexOf('ROLL DE COMBATE');
-        
-        if (idx !== -1) {
-          const regex = /"([^"]+)",([^,]+),([^,]+),([^\"]+?)(?="[A-ZÁÉÍÓÚÑa-zñ\s\.,-]+",[A-Z]|$)/g;
-          let match;
-          let count = 0;
+        const workbookLeo = XLSX.readFile(archivoLeo);
+        const sheetNameLeo = workbookLeo.SheetNames[0];
+        const rowsLeo = XLSX.utils.sheet_to_json(workbookLeo.Sheets[sheetNameLeo]);
 
-          while ((match = regex.exec(textContent)) !== null) {
-            const nombreCompleto = match[1].trim().toUpperCase();
-            const grado = match[2].trim();
-            const cargoChapa = match[3].trim();
+        let countLeo = 0;
+        for (const row of rowsLeo) {
+          const apellido = String(row['APELLIDO'] || row['APELLIDOS'] || '').trim();
+          const nombres = String(row['NOMBRES'] || row['NOMBRE'] || '').trim();
+          let nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
 
-            if (nombreCompleto) {
-              await pool.query(
-                `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ($1, $2, $3, $4)`,
-                ['S/D', nombreCompleto, grado, cargoChapa]
-              );
-              count++;
-            }
+          if (nombreCompleto === ',') {
+            nombreCompleto = String(row['PERSONAL'] || row['REVISTA'] || row['APELLIDO Y NOMBRES'] || '').trim().toUpperCase();
           }
-          console.log(`> Importados ${count} registros de LEO IESP exitosamente.`);
+
+          const grado = String(row['GRADO'] || row['JERARQUIA'] || row['ESTAS'] || 'Personal').trim();
+          const cargoChapa = String(row['CARGO'] || row['DESTINO'] || row['CHAPA'] || 'S/D').trim();
+          const dni = String(row['DNI'] || 'S/D').trim();
+          const celular = String(row['CELULAR'] || row['TEL'] || '').trim();
+
+          if (nombreCompleto && nombreCompleto !== 'S/D' && nombreCompleto !== ',') {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, celular) VALUES ($1, $2, $3, $4, $5)`,
+              [dni, nombreCompleto, grado, cargoChapa, celular]
+            );
+            countLeo++;
+          }
         }
+        console.log(`> Importados ${countLeo} registros de LEO IESP exitosamente.`);
       }
     }
   } catch (err) {
@@ -242,7 +246,6 @@ app.post('/api/novedades-cadetes', async (req, res) => {
   const { persona_id, fecha, estado, observacion, registrado_por } = req.body;
   const fechaHoy = fecha || new Date().toISOString().split('T')[0];
   try {
-    // Upsert o inserción directa
     await pool.query(`DELETE FROM novedades_cadetes WHERE persona_id = $1 AND fecha = $2`, [persona_id, fechaHoy]);
     await pool.query(
       `INSERT INTO novedades_cadetes (persona_id, fecha, estado, observacion, registrado_por) VALUES ($1, $2, $3, $4, $5)`,

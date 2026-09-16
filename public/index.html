@@ -15,7 +15,7 @@
 <body class="bg-slate-100 text-slate-800 text-sm pb-16">
 
   <!-- PANTALLA DE LOGIN INSTITUCIONAL -->
-  <div id="modal-login" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+  <div id="modal-login" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 shadow-2xl border border-slate-200 text-center relative overflow-hidden">
       <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500"></div>
       
@@ -30,7 +30,7 @@
       <div class="space-y-4 text-left">
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Seleccione su Rol / Perfil</label>
-          <select id="login-rol-select" onchange="cambiarPerfilLogin()" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-semibold outline-none focus:ring-2 focus:ring-blue-600">
+          <select id="login-rol-select" onchange="cambiarPerfilLogin()" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-semibold outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
             <option value="oficial">Oficial de Servicio (Fin de semana / Control Total)</option>
             <option value="suboficial">Suboficial de Turno (Mañana / Visitas y Trámites)</option>
             <option value="jefatura">Jefatura / Rectorado (Auditoría de Lectura)</option>
@@ -39,12 +39,12 @@
 
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Usuario del Sistema</label>
-          <input type="text" id="login-usuario" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" readonly />
+          <input type="text" id="login-usuario" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none" readonly />
         </div>
 
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">PIN de Acceso Institucional</label>
-          <input type="password" id="login-pin" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" placeholder="Ingrese PIN (Ej: 1234)" autocomplete="current-password" />
+          <input type="password" id="login-pin" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" placeholder="Ingrese PIN" />
         </div>
 
         <p id="login-error" class="text-xs text-rose-600 font-semibold text-center hidden">Usuario o PIN incorrectos.</p>

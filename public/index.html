@@ -1500,13 +1500,8 @@
         const dataRes = await res.json();
         
         if (dataRes && dataRes.success) {
-          // Mostrar confirmación visual táctica
           mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
-
-          // Limpiar de inmediato la tarjeta lateral para evitar que quede trabado el efectivo
           limpiarSeleccion();
-
-          // Recargar libro de guardia y contadores en tiempo real
           cargarLibro();
           cargarFuerza();
         } else {
@@ -1749,9 +1744,17 @@
       const tbody = document.getElementById('tabla-asistencia-cadetes');
       tbody.innerHTML = '';
 
-      let c1Total = 0, c1Ausentes = 0;
-      let c2Total = 0, c2Ausentes = 0;
-      let c3Total = 0, c3Ausentes = 0;
+      let c1Total = 0, c1Ausentes = 0, c1Presentes = 0;
+      let c2Total = 0, c2Ausentes = 0, c2Presentes = 0;
+      let c3Total = 0, c3Ausentes = 0, c3Presentes = 0;
+
+      // Cálculo real y dinámico del total de cadetes según lo registrado en la base de datos
+      cadetesGlobal.forEach(cad => {
+        const jer = (cad.jerarquia_rol || '').toLowerCase();
+        if (jer.includes('1°') || jer.includes('primer')) c1Total++;
+        else if (jer.includes('2°') || jer.includes('segundo')) c2Total++;
+        else if (jer.includes('3°') || jer.includes('tercer')) c3Total++;
+      });
 
       if (!listaCadetes || listaCadetes.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
@@ -1814,15 +1817,16 @@
           }
         }
 
-        if (jer.includes('1°')) {
-          c1Total++;
+        const jerLower = jer.toLowerCase();
+        if (jerLower.includes('1°') || jerLower.includes('primer')) {
           if (esAusente) c1Ausentes++;
-        } else if (jer.includes('2°')) {
-          c2Total++;
+          else c1Presentes++;
+        } else if (jerLower.includes('2°') || jerLower.includes('segundo')) {
           if (esAusente) c2Ausentes++;
-        } else if (jer.includes('3°')) {
-          c3Total++;
+          else c2Presentes++;
+        } else if (jerLower.includes('3°') || jerLower.includes('tercer')) {
           if (esAusente) c3Ausentes++;
+          else c3Presentes++;
         }
 
         let waLinkCadete = cel ? `https://api.whatsapp.com/send?phone=${cel.replace(/\D/g, '')}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20IESP.` : '#';
@@ -1846,9 +1850,17 @@
         `;
       });
 
-      document.getElementById('stat-cad1').innerHTML = `${c1Total - c1Ausentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
-      document.getElementById('stat-cad2').innerHTML = `${c2Total - c2Ausentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
-      document.getElementById('stat-cad3').innerHTML = `${c3Total - c3Ausentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;
+      // Actualizar contadores reales tanto en el modal como en las tarjetas principales
+      document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
+      document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
+      document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;
+      
+      const fCad1 = document.getElementById('f-cad1');
+      const fCad2 = document.getElementById('f-cad2');
+      const fCad3 = document.getElementById('f-cad3');
+      if (fCad1) fCad1.innerText = `${c1Presentes} / ${c1Total}`;
+      if (fCad2) fCad2.innerText = `${c2Presentes} / ${c2Total}`;
+      if (fCad3) fCad3.innerText = `${c3Presentes} / ${c3Total}`;
     }
 
     function abrirModalNovedad(cad) {

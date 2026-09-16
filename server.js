@@ -138,7 +138,7 @@ async function inicializarBaseDatos() {
       )
     `);
 
-    // Asegurar columnas nuevas
+    // Asegurar columnas nuevas en personas
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS celular TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_1 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_1 TEXT;`);
@@ -180,6 +180,38 @@ async function inicializarBaseDatos() {
         valor TEXT
       )
     `);
+
+    // --- NUEVAS TABLAS INDEPENDIENTES (Roles y Visitas Externas) ---
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios_sistema (
+        id SERIAL PRIMARY KEY,
+        usuario TEXT UNIQUE,
+        pin TEXT,
+        nombre_completo TEXT,
+        rol TEXT -- 'OFICIAL', 'SUBOFICIAL', 'DIRECTIVO'
+      )
+    `);
+
+    const checkUser = await pool.query(`SELECT COUNT(*) FROM usuarios_sistema`);
+    if (parseInt(checkUser.rows[0].count) === 0) {
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('oficial', '1234', 'Oficial de Servicio', 'OFICIAL')`);
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('suboficial', '5678', 'Suboficial de Turno', 'SUBOFICIAL')`);
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('jefatura', '9999', 'Jefatura / Rectorado', 'DIRECTIVO')`);
+    }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS visitas_externas (
+        id SERIAL PRIMARY KEY,
+        dni TEXT,
+        nombre_completo TEXT,
+        procedencia TEXT,
+        motivo TEXT,
+        destino_area TEXT,
+        fecha_hora TEXT,
+        registrado_por TEXT
+      )
+    `);
+
     console.log('Tablas y columnas verificadas exitosamente en PostgreSQL.');
 
     // 1. Importar Cadetes solo si la tabla no tiene cadetes registrados
@@ -221,7 +253,60 @@ async function inicializarBaseDatos() {
 
 inicializarBaseDatos();
 
-// Endpoint manual de respaldo por si se requiere re-sincronizar al instante
+// --- NUEVOS ENDPOINTS PARA LOGIN Y VISITAS EXTERNAS ---
+app.post('/api/login', async (req, res) => {
+  const { usuario, pin } = req.body;
+  try {
+    const resultado = await pool.query(`SELECT * FROM usuarios_sistema WHERE usuario = $1 AND pin = $2`, [usuario, pin]);
+    if (resultado.rows.length > 0) {
+      res.json({ success: true, usuario: resultado.rows[0] });
+    } else {
+      res.status(401).json({ success: false, error: 'Usuario o PIN incorrectos' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/visitas-externas', async (req, res) => {
+  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  try {
+    const resultado = await pool.query(`SELECT * FROM visitas_externas WHERE fecha_hora LIKE $1 ORDER BY id DESC`, [`${fecha}%`]);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/visitas-externas', async (req, res) => {
+  const { dni, nombre_completo, procedencia, motivo, destino_area, registrado_por } = req.body;
+  const now = new Date();
+  const fechaHora = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+
+  try {
+    await pool.query(
+      `INSERT INTO visitas_externas (dni, nombre_completo, procedencia, motivo, destino_area, fecha_hora, registrado_por) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [dni || 'S/D', nombre_completo.toUpperCase(), procedencia || 'Particular', motivo, destino_area, fechaHora, registrado_por || 'Suboficial de Turno']
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/buscar-visita-previa', async (req, res) => {
+  const dni = (req.query.dni || '').trim();
+  if (!dni) return res.json(null);
+  try {
+    const resultado = await pool.query(`SELECT * FROM visitas_externas WHERE dni = $1 ORDER BY id DESC LIMIT 1`, [dni]);
+    res.json(resultado.rows.length > 0 ? resultado.rows[0] : null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// -----------------------------------------------------
+
+// Endpoint manual de respaldo para sincronizar LEO IESP2
 app.get('/api/importar-leo2', async (req, res) => {
   try {
     await sincronizarLeoIesp2();

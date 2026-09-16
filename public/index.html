@@ -14,7 +14,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800 text-sm pb-16">
 
-  <!-- PANTALLA DE LOGIN INSTITUCIONAL (Nivel Superior) -->
+  <!-- PANTALLA DE LOGIN INSTITUCIONAL -->
   <div id="modal-login" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 shadow-2xl border border-slate-200 text-center relative overflow-hidden">
       <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500"></div>
@@ -366,7 +366,7 @@
     </div>
   </main>
 
-  <!-- MODAL DE GESTIÓN DE VISITAS EXTERNAS / CIVILES / COMISIONES (Exclusivo Suboficiales) -->
+  <!-- MODAL DE GESTIÓN DE VISITAS EXTERNAS / CIVILES / COMISIONES -->
   <div id="modal-visitas-externas" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b pb-2">
@@ -376,7 +376,6 @@
         <button onclick="cerrarModalVisitasExternas()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
       </div>
 
-      <!-- Formulario de Ingreso Rápido con Autocompletado por DNI -->
       <div class="bg-slate-50 border border-slate-200 p-3 rounded space-y-3">
         <h4 class="font-bold text-xs text-slate-700 uppercase"><i class="fa-solid fa-user-plus mr-1"></i> Nueva Visita / Entrega de Expediente</h4>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -410,7 +409,6 @@
         </div>
       </div>
 
-      <!-- Tabla de Listado de Visitas del Día -->
       <div>
         <h4 class="font-bold text-xs text-slate-700 uppercase mb-2"><i class="fa-solid fa-list mr-1"></i> Listado de Visitantes y Comisiones Registradas Hoy</h4>
         <div class="max-h-56 overflow-y-auto custom-scroll border rounded">
@@ -818,7 +816,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-      cambiarPerfilLogin(); // Prellenar usuario por defecto
+      cambiarPerfilLogin();
 
       const input = document.getElementById('input-buscar');
       input.addEventListener('input', async (e) => {
@@ -843,7 +841,6 @@
       });
     });
 
-    // SISTEMA DE LOGUEO Y ROLES
     function cambiarPerfilLogin() {
       const rol = document.getElementById('login-rol-select').value;
       const inputUser = document.getElementById('login-usuario');
@@ -903,8 +900,10 @@
       } else if (usuarioActual.rol === 'SUBOFICIAL') {
         badgeRol.innerText = "Suboficial de Turno (Visitas y Mañana)";
         badgeRol.className = "font-bold text-emerald-400";
-        if (btnMenuVisitas) btnMenuVisitas.classList.remove('hidden');
-        if (btnMenuVisitas) btnMenuVisitas.classList.add('inline-flex');
+        if (btnMenuVisitas) {
+          btnMenuVisitas.classList.remove('hidden');
+          btnMenuVisitas.classList.add('inline-flex');
+        }
       } else if (usuarioActual.rol === 'DIRECTIVO') {
         badgeRol.innerText = "Jefatura / Rectorado (Modo Lectura)";
         badgeRol.className = "font-bold text-purple-400";
@@ -920,7 +919,6 @@
       document.getElementById('modal-login').classList.remove('hidden');
     }
 
-    // MÓDULO DE VISITAS EXTERNAS Y TERCEROS
     function abrirModalVisitasExternas() {
       cargarListaVisitasExternas();
       document.getElementById('modal-visitas-externas').classList.remove('hidden');
@@ -942,7 +940,6 @@
           document.getElementById('visita-nombre').value = visitaPrevia.nombre_completo || '';
           document.getElementById('visita-procedencia').value = visitaPrevia.procedencia || '';
           document.getElementById('visita-destino').value = visitaPrevia.destino_area || '';
-          // Dejamos motivo libre para actualizar si viene por otro trámite
         }
       } catch (err) {
         console.error(err);

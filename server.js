@@ -253,7 +253,7 @@ async function inicializarBaseDatos() {
 
 inicializarBaseDatos();
 
-// Endpoints para Login y Visitas Externas
+// Endpoints para Login, Visitas Externas y Gestión de Usuarios
 app.post('/api/login', async (req, res) => {
   const { usuario, pin } = req.body;
   try {
@@ -263,6 +263,41 @@ app.post('/api/login', async (req, res) => {
     } else {
       res.status(401).json({ success: false, error: 'Usuario o PIN incorrectos' });
     }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/usuarios', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT id, usuario, nombre_completo, rol FROM usuarios_sistema ORDER BY id ASC`);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/usuarios', async (req, res) => {
+  const { usuario, pin, nombre_completo, rol } = req.body;
+  if (!usuario || !pin || !nombre_completo || !rol) {
+    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (usuario) DO UPDATE SET pin = EXCLUDED.pin, nombre_completo = EXCLUDED.nombre_completo, rol = EXCLUDED.rol`,
+      [usuario.toLowerCase().trim(), pin, nombre_completo.toUpperCase(), rol]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/usuarios/:id', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM usuarios_sistema WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

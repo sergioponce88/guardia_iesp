@@ -1,2283 +1,479 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>I.E.S.P. "Gral. San Martín" - Control de Guardia</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <style>
-    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  </style>
-</head>
-<body class="bg-slate-100 text-slate-800 text-sm pb-16">
+const express = require('express');
+const path = require('path');
+const { Pool } = require('pg');
+const axios = require('axios');
+const fs = require('fs');
+const XLSX = require('xlsx');
 
-  <!-- PANTALLA DE LOGIN INSTITUCIONAL -->
-  <div id="modal-login" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 shadow-2xl border border-slate-200 text-center relative overflow-hidden">
-      <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500"></div>
-      
-      <div class="space-y-2">
-        <div class="w-16 h-16 mx-auto bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg text-2xl font-bold border border-slate-700">
-          <i class="fa-solid fa-shield-halved text-amber-500"></i>
-        </div>
-        <h2 class="font-bold text-xl text-slate-900 tracking-wide">I.E.S.P. "Gral. San Martín"</h2>
-        <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Sistema Integral de Control de Guardia</p>
-      </div>
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-      <div class="space-y-4 text-left">
-        <div>
-          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Seleccione su Rol / Perfil</label>
-          <select id="login-rol-select" onchange="cambiarPerfilLogin()" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-semibold outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer">
-            <option value="oficial">Oficial de Servicio (Fin de semana / Control Total)</option>
-            <option value="suboficial">Suboficial de Turno (Mañana / Visitas y Trámites)</option>
-            <option value="jefatura">Jefatura / Rectorado (Auditoría de Lectura)</option>
-          </select>
-        </div>
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-        <div>
-          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Usuario del Sistema</label>
-          <input type="text" id="login-usuario" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none" readonly />
-        </div>
+// Configuración de conexión a PostgreSQL usando la variable de entorno de Render
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-        <div>
-          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">PIN de Acceso Institucional</label>
-          <input type="password" id="login-pin" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" placeholder="Ingrese PIN" />
-        </div>
+// Función centralizada para importar y sincronizar LEO IESP2.xlsx
+async function sincronizarLeoIesp2() {
+  const posiblesRutas = [
+    'LEO IESP2.xlsx', 
+    'LEO IESP2', 
+    'LEO IESP2.XLSX', 
+    path.join(__dirname, 'LEO IESP2.xlsx'),
+    path.join(__dirname, 'public', 'LEO IESP2.xlsx'),
+    path.join(__dirname, 'public', 'LEO IESP2')
+  ];
+  
+  let archivoEncontrado = null;
+  for (const ruta of posiblesRutas) {
+    if (fs.existsSync(ruta)) {
+      archivoEncontrado = ruta;
+      break;
+    }
+  }
 
-        <p id="login-error" class="text-xs text-rose-600 font-semibold text-center hidden">Usuario o PIN incorrectos.</p>
-      </div>
+  if (!archivoEncontrado) return;
 
-      <button onclick="ejecutarLogin()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-xs shadow-xl transition-all transform hover:scale-[1.02]">
-        ACCEDER AL SISTEMA <i class="fa-solid fa-arrow-right ml-2"></i>
-      </button>
-
-      <div class="text-[10px] text-slate-400">
-        Plataforma Segura Autorizada - Dpto. Informática I.E.S.P.
-      </div>
-    </div>
-  </div>
-
-  <!-- Header Superior -->
-  <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-700 shadow-md">
-    <div class="flex items-center space-x-3">
-      <div>
-        <h1 class="font-bold text-base leading-tight tracking-wide">I.E.S.P. "Gral. San Martín"</h1>
-        <p class="text-xs text-slate-400">Control de Guardia | Sesión: <span id="badge-sesion-rol" class="font-bold text-amber-400">Oficial</span></p>
-      </div>
-    </div>
-
-    <!-- BOTÓN CENTRAL DE ESCANEO QR -->
-    <div class="my-1 sm:my-0">
-      <button onclick="iniciarCamaraQR()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center shadow-lg border border-blue-400/30 transition-all transform hover:scale-105">
-        <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center mr-2">
-          <i class="fa-solid fa-qrcode text-white text-xs"></i>
-        </div>
-        <span>ESCANEAR QR</span>
-      </button>
-    </div>
-
-    <div class="flex items-center space-x-2">
-      <button id="btn-menu-visitas" onclick="abrirModalVisitasExternas()" class="hidden bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold items-center shadow transition-colors">
-        <i class="fa-solid fa-id-badge mr-1.5"></i> Visitas / Civiles
-      </button>
-      <button onclick="abrirModalOficial()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial
-      </button>
-      <button onclick="abrirModalCadetes()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-graduation-cap mr-1.5"></i> Cadetes
-      </button>
-      <button onclick="abrirModalFuerzaEfectiva()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-users mr-1.5"></i> Personal
-      </button>
-      <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
-        <i class="fa-solid fa-car mr-1.5"></i> Vehículos
-      </button>
-      <button onclick="cerrarSesion()" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1 rounded text-xs font-semibold shadow transition-colors" title="Cerrar Sesión">
-        <i class="fa-solid fa-power-off"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- Banner Oficial de Servicio -->
-  <div class="bg-amber-500 text-slate-900 px-4 py-1 text-xs flex justify-between font-medium shadow-sm items-center">
-    <div><span class="font-bold uppercase tracking-wider">OFICIAL DE SERVICIO:</span> <span id="txt-oficial-servicio">OFICIAL SUBAYUDANTE PEDRAZA RAMIRO</span></div>
-    <div class="flex items-center space-x-2">
-      <span class="text-[11px] font-bold">Contacto Oficial:</span>
-      <a id="btn-wa-oficial" href="https://api.whatsapp.com/send?phone=549381000000" target="_blank" class="bg-emerald-700 hover:bg-emerald-800 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center" title="WhatsApp Oficial"><i class="fa-brands fa-whatsapp mr-1"></i> WA</a>
-      <a id="btn-call-oficial" href="tel:381000000" class="bg-blue-700 hover:bg-blue-800 text-white px-2 py-0.5 rounded text-[10px] font-bold flex items-center" title="Llamar Oficial"><i class="fa-solid fa-phone mr-1"></i> Llamar</a>
-    </div>
-  </div>
-
-  <main class="p-4 max-w-7xl mx-auto space-y-4">
-
-    <!-- Tarjetas de Fuerza Efectiva en Tiempo Real -->
-    <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-      <div class="flex justify-between items-center mb-2">
-        <h2 class="text-xs font-bold text-slate-700 flex items-center uppercase tracking-wider">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-          Fuerza Efectiva en el Instituto (Tiempo Real)
-        </h2>
-        <button onclick="cargarTodo()" class="text-xs text-blue-600 hover:text-blue-800 flex items-center font-semibold">
-          <i class="fa-solid fa-arrows-rotate mr-1"></i> Actualizar
-        </button>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center">
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">PLANTA POLICIAL</span>
-          <span id="f-planta" class="text-base font-bold text-slate-800">8 / 131</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 1° AÑO</span>
-          <span id="f-cad1" class="text-base font-bold text-slate-800">1 / 61</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 2° AÑO</span>
-          <span id="f-cad2" class="text-base font-bold text-slate-800">1 / 48</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">CADETES 3° AÑO</span>
-          <span id="f-cad3" class="text-base font-bold text-slate-800">1 / 75</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">VEHÍCULOS EN PREDIO</span>
-          <span id="f-vehiculos" class="text-base font-bold text-slate-800">4</span>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 rounded p-2">
-          <span class="text-[10px] uppercase font-bold text-slate-500 block">COMISIONES EXT.</span>
-          <span id="f-vehiculos-ext" class="text-base font-bold text-slate-800">0</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Panel de Operaciones -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-
-      <!-- Columna Izquierda: Control de Acceso -->
-      <div class="lg:col-span-4 space-y-3">
-        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
-          <div class="flex justify-between items-center">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">
-              <i class="fa-solid fa-address-card mr-1 text-slate-500"></i> 1. Ingreso / Egreso Personal, Cadetes y Visitas
-            </h3>
-            <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Fuerza Activa</span>
-          </div>
-
-          <button type="button" onclick="iniciarCamaraQR()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 rounded text-xs flex items-center justify-center shadow transition-colors">
-            <i class="fa-solid fa-camera mr-2 text-base"></i> Abrir Cámara para Escanear QR
-          </button>
-
-          <button type="button" onclick="pegarQRManual()" class="w-full bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-700 py-1.5 rounded text-xs flex items-center justify-center font-medium transition-colors">
-            <i class="fa-regular fa-clipboard mr-1.5"></i> Pegar Enlace Manualmente (Sin Cámara)
-          </button>
-
-          <div class="relative flex items-center">
-            <input 
-              type="text" 
-              id="input-buscar" 
-              placeholder="Busque por DNI, Apellido, N° de Legajo o Grado..." 
-              autocomplete="off"
-              class="w-full pl-3 pr-9 py-1.5 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-600 outline-none"
-            />
-            <button type="button" onclick="iniciarBusquedaPorVoz()" class="absolute right-2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Buscar por dictado rápido">
-              <i id="icono-mic" class="fa-solid fa-microphone text-sm"></i>
-            </button>
-            <div id="resultados-busqueda" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded shadow-lg max-h-48 overflow-y-auto z-20 custom-scroll"></div>
-          </div>
-
-          <!-- Tarjeta del Protagonista Seleccionado -->
-          <div id="tarjeta-persona" class="bg-slate-50 border border-slate-200 rounded p-3 relative space-y-3">
-            <button onclick="limpiarSeleccion()" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-            <div class="flex items-center space-x-3">
-              <div class="w-24 h-24 bg-slate-200 rounded-lg border-2 border-slate-300 flex items-center justify-center overflow-hidden flex-shrink-0 shadow">
-                <img 
-                  id="foto-persona" 
-                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" 
-                  alt="Foto de Credencial" 
-                  class="w-full h-full object-cover"
-                />
-              </div>
-              <div class="flex-1 min-w-0">
-                <h4 id="persona-nombre" class="font-bold text-slate-800 text-xs truncate">Seleccione una persona</h4>
-                <p id="persona-sub" class="text-[11px] text-slate-500 truncate">Jerarquía / Rol</p>
-                <p id="persona-det" class="text-[10px] text-slate-400">DNI / N° de Legajo</p>
-                <div class="flex space-x-2 mt-1">
-                  <button id="btn-editar-persona" onclick="abrirModalEditarPersona()" class="text-[10px] text-indigo-600 hover:underline hidden font-semibold">
-                    <i class="fa-solid fa-user-pen"></i> Editar Datos
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Sección Celular y Opciones Dobles Uniformes (Llamar y WhatsApp) -->
-            <div class="pt-2 border-t border-slate-200 space-y-2 text-xs">
-              <div class="flex justify-between items-center">
-                <span class="text-slate-500 font-bold uppercase text-[10px]">CELULAR / CONTACTO:</span>
-                <span id="persona-celular" class="font-mono text-slate-700">S/D</span>
-              </div>
-              <div id="seccion-botones-personal" class="grid grid-cols-2 gap-2 hidden">
-                <a id="btn-whatsapp-cadete" href="#" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1 px-2 rounded text-center text-[11px] shadow-sm transition-colors flex items-center justify-center">
-                  <i class="fa-brands fa-whatsapp mr-1"></i> WhatsApp
-                </a>
-                <a id="btn-llamar-cadete" href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-center text-[11px] shadow-sm transition-colors flex items-center justify-center">
-                  <i class="fa-solid fa-phone mr-1"></i> Llamar
-                </a>
-              </div>
-
-              <!-- Contactos de Emergencia (Familiares) Uniformes -->
-              <div class="bg-amber-50 border border-amber-200 rounded p-2 space-y-2 mt-1">
-                <span class="text-[10px] font-bold text-amber-800 uppercase block"><i class="fa-solid fa-phone-volume mr-1"></i> Familiares (Emergencias)</span>
-                
-                <!-- Familiar 1 -->
-                <div class="space-y-1 bg-white p-1.5 rounded border border-amber-100">
-                  <div class="flex justify-between items-center text-[11px]">
-                    <span id="txt-fam-1" class="text-slate-700 font-bold truncate pr-1">1°: Sin registrar</span>
-                  </div>
-                  <div id="acciones-fam-1" class="grid grid-cols-2 gap-1.5 hidden pt-1">
-                    <a id="btn-wa-fam-1" href="#" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1 px-2 rounded text-center shadow-sm transition-colors flex items-center justify-center">
-                      <i class="fa-brands fa-whatsapp mr-1"></i> WhatsApp
-                    </a>
-                    <a id="btn-llamar-fam-1" href="#" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1 px-2 rounded text-center shadow-sm transition-colors flex items-center justify-center">
-                      <i class="fa-solid fa-phone mr-1"></i> Llamar
-                    </a>
-                  </div>
-                </div>
-
-                <!-- Familiar 2 -->
-                <div class="space-y-1 bg-white p-1.5 rounded border border-amber-100">
-                  <div class="flex justify-between items-center text-[11px]">
-                    <span id="txt-fam-2" class="text-slate-700 font-bold truncate pr-1">2°: Sin registrar</span>
-                  </div>
-                  <div id="acciones-fam-2" class="grid grid-cols-2 gap-1.5 hidden pt-1">
-                    <a id="btn-wa-fam-2" href="#" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1 px-2 rounded text-center shadow-sm transition-colors flex items-center justify-center">
-                      <i class="fa-brands fa-whatsapp mr-1"></i> WhatsApp
-                    </a>
-                    <a id="btn-llamar-fam-2" href="#" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1 px-2 rounded text-center shadow-sm transition-colors flex items-center justify-center">
-                      <i class="fa-solid fa-phone mr-1"></i> Llamar
-                    </a>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            <div id="badge-estado" class="bg-slate-200/70 text-slate-700 rounded px-2 py-1 text-[11px] font-semibold flex items-center">
-              <span class="w-2 h-2 rounded-full bg-slate-400 mr-2"></span> FUERA DEL INSTITUTO
-            </div>
-
-            <!-- Credencial Oficial y Botón de Confirmación -->
-            <div class="space-y-1 bg-white p-2 rounded border border-slate-200">
-              <div class="flex justify-between items-center text-[11px]">
-                <span class="text-slate-600 font-semibold"><i class="fa-solid fa-id-card mr-1 text-slate-400"></i> Credencial QR</span>
-                <span id="persona-hash" class="text-blue-600 font-mono text-[10px]">Sin Enlace</span>
-              </div>
-              <div class="flex space-x-1 pt-1">
-                <button onclick="abrirModalCredencial()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-semibold py-1 rounded transition-colors">
-                  <i class="fa-solid fa-link mr-1"></i> Asociar QR
-                </button>
-                <button id="btn-desvincular-qr" onclick="desvincularQrPersona()" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 text-[11px] font-semibold px-2 py-1 rounded transition-colors" title="Desvincular">
-                  <i class="fa-solid fa-unlink"></i>
-                </button>
-              </div>
-              <button id="btn-confirmar-qr" onclick="confirmarYGuardarVinculacion()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs mt-1 shadow-sm transition-colors">
-                <i class="fa-solid fa-check-circle mr-1"></i> Confirmar y Guardar Vinculación
-              </button>
-              <a 
-                id="btn-credencial" 
-                href="#" 
-                target="_blank" 
-                class="hidden w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 rounded text-[11px] block text-center shadow-sm transition-colors mt-1"
-              >
-                Abrir Validación Oficial
-              </a>
-            </div>
-
-            <!-- Selector de Puesto -->
-            <div class="pt-2 border-t border-slate-200 space-y-1">
-              <label class="text-[10px] uppercase font-bold text-slate-500 block">PUESTO DE CONTROL ACTIVO:</label>
-              <div class="flex items-center bg-white border border-slate-300 rounded px-2 py-1 text-xs">
-                <span class="text-amber-500 mr-2">📍</span>
-                <select id="sel-puesto" class="bg-transparent text-slate-800 font-semibold w-full outline-none cursor-pointer">
-                  <option value="Puesto 1 (Principal)">Puesto 1 (Principal)</option>
-                  <option value="Puesto 2">Puesto 2</option>
-                  <option value="Puesto 3">Puesto 3</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Submódulo Vehicular -->
-            <div class="pt-2 border-t border-slate-200 space-y-2">
-              <div id="seccion-con-vehiculo" class="hidden space-y-1.5">
-                <div class="flex justify-between items-center text-xs">
-                  <span class="text-slate-500 text-[10px] uppercase font-bold">VEHÍCULO REGISTRADO:</span>
-                  <div class="space-x-2">
-                    <button onclick="abrirModalVehiculo()" class="text-[10px] text-emerald-700 hover:underline font-semibold"><i class="fa-solid fa-pen"></i> Editar</button>
-                    <span id="persona-patente" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-300 font-mono"></span>
-                  </div>
-                </div>
-                <p id="persona-modelo" class="text-xs font-semibold text-slate-700"></p>
-                <div class="grid grid-cols-2 gap-2 pt-1">
-                  <button onclick="registrarMovimiento('INGRESO', 'Ingreso c/ Móvil')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                    <i class="fa-solid fa-car mr-1.5"></i> Ingreso c/ Móvil
-                  </button>
-                  <button onclick="registrarMovimiento('EGRESO', 'Egreso c/ Móvil')" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                    <i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Egreso c/ Móvil
-                  </button>
-                </div>
-              </div>
-              <div id="seccion-sin-vehiculo" class="text-center py-1">
-                <p class="text-[11px] text-slate-400 italic mb-1.5">Sin vehículo declarado a su nombre</p>
-                <button onclick="abrirModalVehiculo()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 py-1.5 rounded text-xs font-semibold transition-colors">
-                  <i class="fa-solid fa-plus mr-1"></i> Declarar / Registrar Vehículo Ahora
-                </button>
-              </div>
-            </div>
-
-            <!-- Pase Peatonal -->
-            <div class="space-y-1.5 pt-2 border-t border-slate-200">
-              <span class="text-[10px] uppercase font-bold text-slate-500 block">O PASE PEATONAL (A PIE):</span>
-              <div class="grid grid-cols-2 gap-2">
-                <button onclick="registrarMovimiento('INGRESO', 'A pie')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                  <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Ingreso a Pie
-                </button>
-                <button onclick="registrarMovimiento('EGRESO', 'A pie')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 rounded text-xs flex items-center justify-center shadow transition-colors">
-                  <span class="w-2 h-2 rounded-full bg-white mr-1.5"></span> Egreso a Pie
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Columna Derecha: Libro de Guardia -->
-      <div class="lg:col-span-8">
-        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
-          <div class="flex flex-wrap justify-between items-center gap-2">
-            <div>
-              <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">
-                <i class="fa-solid fa-book-open mr-1 text-slate-500"></i> LIBRO DE GUARDIA (EN VIVO)
-              </h3>
-              <p class="text-[11px] text-slate-400">Orden cronológico minuto a minuto</p>
-            </div>
-            <div class="flex items-center space-x-2">
-              <input type="date" id="filtro-fecha" onchange="cargarLibro()" class="border border-slate-300 rounded px-2 py-1 text-xs outline-none" />
-              <button onclick="cargarLibro()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-2.5 py-1 rounded flex items-center shadow transition-colors">
-                <i class="fa-solid fa-clock mr-1"></i> Todo el Día
-              </button>
-              <button onclick="enviarSeleccionadosWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2.5 py-1 rounded font-semibold flex items-center shadow transition-colors">
-                <i class="fa-brands fa-whatsapp mr-1.5"></i> Enviar Seleccionados
-              </button>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto custom-scroll border border-slate-200 rounded">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
-                <tr>
-                  <th class="p-2 w-6 text-center"><input type="checkbox" id="chk-todos" onchange="toggleTodos(this)" /></th>
-                  <th class="p-2">Hora</th>
-                  <th class="p-2">Puesto</th>
-                  <th class="p-2">Evento</th>
-                  <th class="p-2">Protagonista</th>
-                  <th class="p-2">Detalle</th>
-                  <th class="p-2 text-center">WhatsApp / Acción</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-guardia" class="divide-y divide-slate-200"></tbody>
-            </table>
-          </div>
-          <div class="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>Registro activo</span>
-            <span>Asientos registrados: <span id="total-asientos" class="font-bold text-slate-700">0</span></span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <!-- MODAL DE GESTIÓN DE VISITAS EXTERNAS / CIVILES / COMISIONES -->
-  <div id="modal-visitas-externas" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-id-badge text-amber-600 mr-2"></i> Registro de Visitas, Civiles y Comisiones Externas
-        </h3>
-        <button onclick="cerrarModalVisitasExternas()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
-      </div>
-
-      <div class="bg-slate-50 border border-slate-200 p-3 rounded space-y-3">
-        <h4 class="font-bold text-xs text-slate-700 uppercase"><i class="fa-solid fa-user-plus mr-1"></i> Nueva Visita / Entrega de Expediente</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div>
-            <label class="text-[10px] uppercase font-bold text-slate-500 block">DNI (Búsqueda / Autocompletar)</label>
-            <input type="text" id="visita-dni" onblur="buscarVisitaPreviaPorDni()" placeholder="Ej: 30123456" class="w-full border rounded p-1.5 text-xs bg-white font-mono" />
-          </div>
-          <div class="sm:col-span-2">
-            <label class="text-[10px] uppercase font-bold text-slate-500 block">Apellido y Nombre Completo</label>
-            <input type="text" id="visita-nombre" placeholder="Ej: GOMEZ, CARLOS ALBERTO" class="w-full border rounded p-1.5 text-xs bg-white uppercase font-semibold" />
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div>
-            <label class="text-[10px] uppercase font-bold text-slate-500 block">Procedencia / Institución</label>
-            <input type="text" id="visita-procedencia" placeholder="Ej: Policía de Tucumán / Particular" class="w-full border rounded p-1.5 text-xs bg-white" />
-          </div>
-          <div>
-            <label class="text-[10px] uppercase font-bold text-slate-500 block">Motivo / Trámite / Expediente</label>
-            <input type="text" id="visita-motivo" placeholder="Ej: Entrega de Oficio / Trámite personal" class="w-full border rounded p-1.5 text-xs bg-white" />
-          </div>
-          <div>
-            <label class="text-[10px] uppercase font-bold text-slate-500 block">Área / Destino a Visitar</label>
-            <input type="text" id="visita-destino" placeholder="Ej: Secretaría / Jefatura de Cuerpo" class="w-full border rounded p-1.5 text-xs bg-white" />
-          </div>
-        </div>
-        <div class="flex justify-end pt-1">
-          <button onclick="guardarVisitaExterna()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded text-xs font-bold shadow transition-colors">
-            <i class="fa-solid fa-check mr-1"></i> Registrar Ingreso de Tercero
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <h4 class="font-bold text-xs text-slate-700 uppercase mb-2"><i class="fa-solid fa-list mr-1"></i> Listado de Visitantes y Comisiones Registradas Hoy</h4>
-        <div class="max-h-56 overflow-y-auto custom-scroll border rounded">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-slate-900 text-white uppercase text-[10px]">
-              <tr>
-                <th class="p-2">Hora</th>
-                <th class="p-2">DNI</th>
-                <th class="p-2">Apellido y Nombre</th>
-                <th class="p-2">Procedencia</th>
-                <th class="p-2">Motivo / Trámite</th>
-                <th class="p-2">Destino</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-visitas-body" class="divide-y divide-slate-200"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="flex justify-end">
-        <button onclick="cerrarModalVisitasExternas()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL CÁMARA QR -->
-  <div id="modal-scanner" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-4 max-w-md w-full space-y-3 shadow-2xl relative">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-camera text-blue-600 mr-2"></i> Lector de Credencial Oficial
-        </h3>
-        <button onclick="cerrarCamaraQR()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
-      </div>
-      <p class="text-xs text-slate-500">Apuntá el código QR oficial de la credencial frente a la cámara.</p>
-      <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center border-2 border-blue-500 shadow-inner">
-        <video id="video-qr" class="w-full h-full object-cover" playsinline autoplay muted></video>
-        <canvas id="canvas-qr" class="hidden"></canvas>
-      </div>
-      <p id="scan-status" class="text-xs text-center text-blue-600 font-medium animate-pulse">Buscando código QR...</p>
-      <div class="flex justify-end pt-2">
-        <button onclick="cerrarCamaraQR()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded text-xs">Cerrar Cámara</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DE CONFIRMACIÓN VISUAL TÁCTICA -->
-  <div id="modal-confirmacion-visual" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl p-6 max-w-sm w-full space-y-4 shadow-2xl text-center relative border-4 border-slate-900">
-      <div id="badge-resultado-mov" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1">
-        REGISTRO EXITOSO
-      </div>
-      <div class="w-32 h-32 mx-auto bg-slate-200 rounded-lg border-4 border-slate-300 overflow-hidden shadow-md flex items-center justify-center">
-        <img id="img-visual-foto" src="" alt="Foto Oficial" class="w-full h-full object-cover" />
-      </div>
-      <div class="space-y-1">
-        <h3 id="txt-visual-nombre" class="font-bold text-slate-900 text-sm uppercase">APELLIDO Y NOMBRE</h3>
-        <p id="txt-visual-jerarquia" class="text-xs text-slate-600 font-semibold">Jerarquía / Rol</p>
-        <p id="txt-visual-chapa" class="text-xs text-blue-600 font-mono font-bold">N° Legajo: S/D</p>
-      </div>
-      <div class="bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-xs space-y-1 text-left">
-        <div class="flex justify-between">
-          <span class="text-slate-500 font-medium">Acción:</span>
-          <span id="txt-visual-accion" class="font-bold text-slate-800">INGRESO</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500 font-medium">Hora exacta:</span>
-          <span id="txt-visual-hora" class="font-mono font-bold text-slate-800">00:00</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500 font-medium">Puesto:</span>
-          <span id="txt-visual-puesto" class="font-bold text-slate-800">Puesto 1</span>
-        </div>
-      </div>
-      <button onclick="cerrarModalVisual()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-lg text-xs shadow transition-colors">
-        ACEPTAR Y CONTINUAR
-      </button>
-    </div>
-  </div>
-
-  <!-- Modal Listado Fuerza Efectiva Completo -->
-  <div id="modal-fuerza-efectiva" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-4xl w-full space-y-3 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-users text-indigo-600 mr-2"></i> Directorio General - Fuerza Efectiva
-        </h3>
-        <button onclick="cerrarModalFuerzaEfectiva()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-      </div>
-      <div class="flex gap-2">
-        <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="flex-1 border rounded p-2 text-xs outline-none" />
-        <button id="btn-agregar-nuevo-efectivo" onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
-          <i class="fa-solid fa-user-plus mr-1.5"></i> Agregar Nuevo
-        </button>
-      </div>
-      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-slate-900 text-white uppercase text-[10px]">
-            <tr>
-              <th class="p-2">Apellido y Nombre</th>
-              <th class="p-2">Jerarquía / Rol</th>
-              <th class="p-2">N° de Legajo</th>
-              <th class="p-2 text-center w-40">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-directorio-body" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-      <div class="flex justify-end">
-        <button onclick="cerrarModalFuerzaEfectiva()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
-  <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-6xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-graduation-cap text-purple-600 mr-2"></i> Control de Asistencia - Compañía de Cadetes (1°, 2° y 3° Año)
-        </h3>
-        <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
-      </div>
-
-      <div class="bg-slate-50 border border-slate-200 p-3 rounded flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center space-x-2">
-          <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-stopwatch text-amber-600 mr-1"></i> Hora Tope de Ingreso:</label>
-          <input type="time" id="input-hora-tope" class="border rounded px-2 py-1 text-xs font-mono font-bold bg-white" value="07:00" />
-          <button id="btn-fijar-hora-tope" onclick="guardarHoraTope()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded text-xs font-semibold">Fijar Hora</button>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <select id="sel-destino-parte" class="border rounded px-2 py-1 text-xs bg-white font-medium">
-            <option value="Secretaría Académica">Secretaría Académica</option>
-            <option value="Jefatura de Cuerpo">Jefatura de Cuerpo</option>
-            <option value="Jefatura de Compañía">Jefatura de Compañía</option>
-            <option value="Grupo de Trabajo / Superior">Grupo de Trabajo / Superior</option>
-          </select>
-          <button onclick="enviarParteAusentesWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow">
-            <i class="fa-brands fa-whatsapp mr-1.5"></i> Enviar Parte de Ausentes / Novedades
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-emerald-800 block">Cadetes 1° Año</span>
-          <p id="stat-cad1" class="text-base font-bold text-slate-800">0 / 61 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
-        </div>
-        <div class="bg-purple-50 border border-purple-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-purple-800 block">Cadetes 2° Año</span>
-          <p id="stat-cad2" class="text-base font-bold text-slate-800">0 / 48 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
-        </div>
-        <div class="bg-indigo-50 border border-indigo-200 p-2.5 rounded text-center">
-          <span class="text-[10px] uppercase font-bold text-indigo-800 block">Cadetes 3° Año</span>
-          <p id="stat-cad3" class="text-base font-bold text-slate-800">0 / 75 <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: 0</span></p>
-        </div>
-        <div class="flex items-center justify-center space-x-1">
-          <button onclick="filtrarCursoCadetes('TODOS')" class="bg-slate-800 text-white px-2.5 py-1.5 rounded text-xs font-semibold">Todos</button>
-          <button onclick="filtrarCursoCadetes('Cadete 1° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">1°</button>
-          <button onclick="filtrarCursoCadetes('Cadete 2° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">2°</button>
-          <button onclick="filtrarCursoCadetes('Cadete 3° Año')" class="bg-purple-600 text-white px-2.5 py-1.5 rounded text-xs font-semibold">3°</button>
-        </div>
-      </div>
-
-      <div class="max-h-[50vh] overflow-y-auto custom-scroll border rounded">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-slate-900 text-white uppercase text-[10px]">
-            <tr>
-              <th class="p-2">Curso</th>
-              <th class="p-2">Legajo</th>
-              <th class="p-2">Apellido y Nombre</th>
-              <th class="p-2 text-center">Estado / Asistencia</th>
-              <th class="p-2 text-center">Último Ingreso</th>
-              <th class="p-2 text-center">Acciones y Novedades</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-asistencia-cadetes" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-
-      <div class="flex justify-end">
-        <button onclick="cerrarModalCadetes()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Registrar Novedad / Justificación a Cadete -->
-  <div id="modal-novedad-cadete" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center border-b pb-2">
-        <i class="fa-solid fa-triangle-exclamation text-amber-600 mr-2"></i> Registrar Novedad / Justificación
-      </h3>
-      <div>
-        <span id="novedad-cadete-nombre" class="font-bold text-xs text-slate-700 block mb-2">CADETE: PEREZ, JUAN</span>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block mb-1">Estado / Motivo</label>
-        <select id="novedad-estado-select" class="w-full border rounded p-1.5 text-xs bg-white font-semibold">
-          <option value="COMISION">Comisión Oficial</option>
-          <option value="ENFERMEDAD">Enfermedad / Parte Médico</option>
-          <option value="AVISO">Aviso Telefónico (Justificado)</option>
-          <option value="AUSENTE">Ausente Injustificado</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block mb-1">Observaciones / Detalle</label>
-        <textarea id="novedad-observacion" rows="3" class="w-full border rounded p-1.5 text-xs outline-none" placeholder="Ej: Autorizado por Jefatura de Cuerpo / Llamó el padre avisando..."></textarea>
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalNovedad()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarNovedadCadete()" class="px-4 py-1.5 bg-amber-600 text-white font-bold rounded text-xs">Guardar Novedad</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Asociar / Editar Credencial QR -->
-  <div id="modal-credencial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-id-card text-blue-600 mr-2"></i> Vincular Enlace de Credencial QR
-      </h3>
-      <div>
-        <label class="text-[11px] text-slate-500 block mb-1">Enlace completo de credencial oficial o Token</label>
-        <input type="text" id="input-credencial-url" class="w-full border rounded p-2 text-xs outline-none" placeholder="Ej: https://credenciales.dpd1.ar/publicoQR/abcdef1234" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalCredencial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarCredencialPersona()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar Credencial</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Editar Datos Personales -->
-  <div id="modal-editar-persona" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-lg w-full space-y-3 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center border-b pb-2">
-        <i class="fa-solid fa-user-pen text-indigo-600 mr-2"></i> Editar Datos Personales y Contactos
-      </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="edit-dni" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
-          <input type="text" id="edit-chapa" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="edit-nombre" class="w-full border rounded p-1.5 text-xs" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <input type="text" id="edit-jerarquia" class="w-full border rounded p-1.5 text-xs" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Número de Celular (WhatsApp / Llamadas)</label>
-        <input type="text" id="edit-celular" class="w-full border rounded p-1.5 text-xs font-mono" placeholder="Ej: 3814000000" />
-      </div>
-      <div class="border-t pt-2 space-y-2">
-        <span class="text-xs font-bold text-slate-700 block"><i class="fa-solid fa-phone-volume text-amber-600 mr-1"></i> Contactos de Emergencia (Familiares)</span>
-        <div class="grid grid-cols-2 gap-2 bg-amber-50 p-2 rounded border border-amber-200">
-          <div>
-            <label class="text-[10px] text-slate-600 font-bold block">Familiar 1 Nombre</label>
-            <input type="text" id="edit-fam1-nombre" class="w-full border rounded p-1 text-[11px] mb-1 bg-white" placeholder="Ej: Padre / Madre" />
-            <label class="text-[10px] text-slate-600 font-bold block">Teléfono 1</label>
-            <input type="text" id="edit-fam1-tel" class="w-full border rounded p-1 text-[11px] font-mono bg-white" placeholder="Ej: 3815000000" />
-          </div>
-          <div>
-            <label class="text-[10px] text-slate-600 font-bold block">Familiar 2 Nombre</label>
-            <input type="text" id="edit-fam2-nombre" class="w-full border rounded p-1 text-[11px] mb-1 bg-white" placeholder="Ej: Tutor / Familiar" />
-            <label class="text-[10px] text-slate-600 font-bold block">Teléfono 2</label>
-            <input type="text" id="edit-fam2-tel" class="w-full border rounded p-1 text-[11px] font-mono bg-white" placeholder="Ej: 3816000000" />
-          </div>
-        </div>
-      </div>
-      <div class="flex justify-end space-x-2 pt-2 border-t">
-        <button onclick="cerrarModalEditarPersona()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarEdicionPersona()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded text-xs">Guardar Cambios</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Nuevo Integrante -->
-  <div id="modal-nuevo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Alta de Integrante
-      </h3>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="text-[11px] text-slate-500 block">DNI</label>
-          <input type="text" id="nuevo-dni" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-        <div>
-          <label class="text-[11px] text-slate-500 block">N° de Legajo</label>
-          <input type="text" id="nuevo-chapa" class="w-full border rounded p-1.5 text-xs" />
-        </div>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Apellido y Nombre Completo</label>
-        <input type="text" id="nuevo-nombre" class="w-full border rounded p-1.5 text-xs" placeholder="Ej: PEREZ, JUAN CARLOS" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Jerarquía / Escalafón</label>
-        <select id="nuevo-jerarquia" class="w-full border rounded p-1.5 text-xs">
-          <option value="Cadete 1° Año">Cadete 1° Año</option>
-          <option value="Cadete 2° Año">Cadete 2° Año</option>
-          <option value="Cadete 3° Año">Cadete 3° Año</option>
-          <option value="Planta Policial">Planta Policial</option>
-          <option value="Visita">Visita</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Enlace Oficial de Credencial</label>
-        <input type="text" id="nuevo-credencial" class="w-full border rounded p-1.5 text-xs" placeholder="https://credenciales.dpd1.ar/publicoQR/..." />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalNuevo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarNuevoIntegrante()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Dar de Alta</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Asignar / Editar Vehículo -->
-  <div id="modal-vehiculo" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-sm w-full space-y-3 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-car text-emerald-600 mr-2"></i> Asignar / Editar Vehículo
-      </h3>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Modelo / Marca</label>
-        <input type="text" id="vehiculo-modelo-input" class="w-full border border-slate-300 rounded p-1.5 text-xs outline-none" placeholder="Ej: Renault Fluence / Honda Wave" />
-      </div>
-      <div>
-        <label class="text-[11px] text-slate-500 block">Dominio / Patente</label>
-        <input type="text" id="vehiculo-patente-input" class="w-full border border-slate-300 rounded p-1.5 text-xs uppercase font-mono outline-none" placeholder="Ej: AA 112 FB" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalVehiculo()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarVehiculoPersona()" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded text-xs">Guardar Móvil</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Listado de Vehículos -->
-  <div id="modal-lista-vehiculos" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-3 shadow-xl">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center">
-          <i class="fa-solid fa-car-side text-emerald-600 mr-2"></i> Vehículos Registrados en el Sistema
-        </h3>
-        <button onclick="cerrarModalListaVehiculos()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-      </div>
-      <div class="max-h-80 overflow-y-auto custom-scroll border rounded">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-slate-900 text-white uppercase text-[10px]">
-            <tr>
-              <th class="p-2">Titular</th>
-              <th class="p-2">Jerarquía</th>
-              <th class="p-2">Modelo / Marca</th>
-              <th class="p-2">Patente</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-vehiculos-body" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-      <div class="flex justify-end">
-        <button onclick="cerrarModalListaVehiculos()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Oficial de Servicio -->
-  <div id="modal-oficial" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg p-5 max-w-md w-full space-y-4 shadow-xl">
-      <h3 class="font-bold text-slate-800 text-sm flex items-center">
-        <i class="fa-solid fa-user-shield text-amber-500 mr-2"></i> Asignar Oficial de Servicio
-      </h3>
-      <div>
-        <label class="text-xs text-slate-500 block mb-1">Nombre, Apellido y Grado Oficial</label>
-        <input type="text" id="input-oficial-nombre" class="w-full border border-slate-300 rounded p-2 text-xs outline-none mb-2" placeholder="Ej: OFICIAL SUBAYUDANTE PEDRAZA RAMIRO" />
-        <label class="text-xs text-slate-500 block mb-1">Número de Teléfono / WhatsApp del Oficial</label>
-        <input type="text" id="input-oficial-tel" class="w-full border border-slate-300 rounded p-2 text-xs font-mono outline-none" placeholder="Ej: 3814000000" />
-      </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="cerrarModalOficial()" class="px-3 py-1.5 bg-slate-200 rounded text-xs">Cancelar</button>
-        <button onclick="guardarOficialServicio()" class="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs">Guardar</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let personaSeleccionada = null;
-    let registrosCargados = [];
-    let directorioGlobal = [];
-    let cadetesGlobal = [];
-    let streamVideo = null;
-    let scanInterval = null;
-    let qrEscaneadoTemporal = null;
-    let cadeteSeleccionadoParaNovedad = null;
-    let horaTopeGlobal = "07:00";
-    let usuarioActual = null;
-    let telefonoOficialGlobal = "3814000000";
-    const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-      cambiarPerfilLogin();
-
-      const input = document.getElementById('input-buscar');
-      input.addEventListener('input', async (e) => {
-        const val = e.target.value.trim();
-        if (val.length < 2) {
-          document.getElementById('resultados-busqueda').classList.add('hidden');
-          return;
+  try {
+    const workbookLeo = XLSX.readFile(archivoEncontrado);
+    let hojaRoll = workbookLeo.Sheets['ROLL DE COMBATE'] || workbookLeo.Sheets[workbookLeo.SheetNames[0]];
+    if (hojaRoll) {
+      const rowsRoll = XLSX.utils.sheet_to_json(hojaRoll);
+      for (const row of rowsRoll) {
+        const apellido = String(row['APELLIDO'] || row['APELLIDOS'] || '').trim();
+        const nombres = String(row['NOMBRES'] || row['NOMBRE'] || '').trim();
+        let nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
+        if (nombreCompleto === ',') {
+          nombreCompleto = String(row['APELLIDO Y NOMBRE'] || row['PERSONAL'] || '').trim().toUpperCase();
         }
-        try {
-          const res = await fetch(`/api/buscar?q=${encodeURIComponent(val)}&_=${Date.now()}`);
-          const datos = await res.json();
-          
-          const resDir = await fetch(`/api/personal-completo?_=${Date.now()}`);
-          const directorioActual = await resDir.json();
-          const idsValidos = directorioActual.map(p => p.id);
-          const datosValidos = datos.filter(p => idsValidos.includes(p.id));
+        const grado = String(row['GRADO'] || row['JERARQUIA'] || 'Personal').trim();
+        const cargoChapa = String(row['CARGO'] || row['DESTINO'] || 'S/D').trim();
 
-          mostrarResultadosBusqueda(datosValidos);
-        } catch (err) {
-          console.error(err);
+        if (nombreCompleto && nombreCompleto !== ',') {
+          const existe = await pool.query(`SELECT id FROM personas WHERE nombre_completo ILIKE $1`, [`%${nombreCompleto}%`]);
+          if (existe.rows.length === 0) {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ('S/D', $1, $2, $3)`,
+              [nombreCompleto, grado, cargoChapa]
+            );
+          }
         }
-      });
+      }
+    }
+  } catch (err) {
+    console.error('Error al sincronizar LEO IESP2:', err);
+  }
+}
+
+// Inicialización de tablas de la Base de Datos
+async function inicializarBaseDatos() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personas (
+        id SERIAL PRIMARY KEY,
+        dni TEXT,
+        nombre_completo TEXT,
+        jerarquia_rol TEXT,
+        cargo_chapa TEXT,
+        credencial_url TEXT,
+        credencial_token TEXT,
+        vehiculo_modelo TEXT,
+        vehiculo_patente TEXT,
+        celular TEXT,
+        familiar_nombre_1 TEXT,
+        familiar_telefono_1 TEXT,
+        familiar_nombre_2 TEXT,
+        familiar_telefono_2 TEXT
+      )
+    `);
+
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS celular TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_1 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_1 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_2 TEXT;`);
+    await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_2 TEXT;`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS novedades_cadetes (
+        id SERIAL PRIMARY KEY,
+        persona_id INTEGER,
+        fecha TEXT,
+        estado TEXT, 
+        observacion TEXT,
+        registrado_por TEXT
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS libro_guardia (
+        id SERIAL PRIMARY KEY,
+        hora TEXT,
+        fecha_completa TEXT,
+        puesto TEXT,
+        accion TEXT,
+        protagonista TEXT,
+        detalle TEXT,
+        rubro TEXT,
+        estado TEXT DEFAULT 'ACTIVO',
+        motivo_anulacion TEXT,
+        notificado_wa INTEGER DEFAULT 0,
+        con_retardo INTEGER DEFAULT 0
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS configuracion_guardia (
+        clave TEXT PRIMARY KEY,
+        valor TEXT
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios_sistema (
+        id SERIAL PRIMARY KEY,
+        usuario TEXT UNIQUE,
+        pin TEXT,
+        nombre_completo TEXT,
+        rol TEXT
+      )
+    `);
+
+    const checkUser = await pool.query(`SELECT COUNT(*) FROM usuarios_sistema`);
+    if (parseInt(checkUser.rows[0].count) === 0) {
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('oficial', '1234', 'Oficial de Servicio', 'OFICIAL')`);
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('suboficial', '5678', 'Suboficial de Turno', 'SUBOFICIAL')`);
+      await pool.query(`INSERT INTO usuarios_sistema (usuario, pin, nombre_completo, rol) VALUES ('jefatura', '9999', 'Jefatura / Rectorado', 'DIRECTIVO')`);
+    }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS visitas_externas (
+        id SERIAL PRIMARY KEY,
+        dni TEXT,
+        nombre_completo TEXT,
+        procedencia TEXT,
+        motivo TEXT,
+        destino_area TEXT,
+        fecha_hora TEXT,
+        registrado_por TEXT
+      )
+    `);
+
+    console.log('Base de datos inicializada correctamente.');
+
+    // Importar Cadetes si la tabla está vacía
+    const resConteoCadetes = await pool.query(`SELECT COUNT(*) FROM personas WHERE jerarquia_rol ILIKE '%cadete%'`);
+    if (parseInt(resConteoCadetes.rows[0].count) === 0) {
+      const archivoCadetes = 'LISTADO DE COMPAÑIA DE CADETES AÑO 2026 PARA D1.xlsx';
+      if (fs.existsSync(archivoCadetes)) {
+        const workbook = XLSX.readFile(archivoCadetes);
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        for (const row of rows) {
+          const apellido = String(row['APELLIDO'] || '').trim();
+          const nombres = String(row['NOMBRES'] || '').trim();
+          const nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
+          const dni = String(row['DNI'] || 'S/D').trim();
+          const cargoChapa = String(row['CARGO'] || 'S/D').trim();
+          const curso = String(row['CURSO'] || '').trim();
+          const celular = String(row['CELULAR'] || '').trim();
+          const jerarquiaRol = curso ? `Cadete ${curso}` : 'Cadete';
+
+          if (nombreCompleto !== ',') {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, celular) VALUES ($1, $2, $3, $4, $5)`,
+              [dni, nombreCompleto, jerarquiaRol, cargoChapa, celular]
+            );
+          }
+        }
+      }
+    }
+
+    await sincronizarLeoIesp2();
+  } catch (err) {
+    console.error('Error en inicialización:', err);
+  }
+}
+
+inicializarBaseDatos();
+
+// --- ENDPOINTS DE LA API ---
+
+app.post('/api/login', async (req, res) => {
+  const { usuario, pin } = req.body;
+  try {
+    const resultado = await pool.query(`SELECT * FROM usuarios_sistema WHERE usuario = $1 AND pin = $2`, [usuario, pin]);
+    if (resultado.rows.length > 0) {
+      res.json({ success: true, usuario: resultado.rows[0] });
+    } else {
+      res.status(401).json({ success: false, error: 'Usuario o PIN incorrectos' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/personal-completo', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT * FROM personas ORDER BY id DESC`);
+    res.json(resultado.rows || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/buscar', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+  const sql = `
+    SELECT * FROM personas 
+    WHERE id::text = $1 OR dni ILIKE $2 OR nombre_completo ILIKE $2 OR jerarquia_rol ILIKE $2 OR cargo_chapa ILIKE $2 OR credencial_token ILIKE $2
+    LIMIT 100
+  `;
+  try {
+    const resultado = await pool.query(sql, [q, `%${q}%`]);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/personas/:id', async (req, res) => {
+  const idPersona = req.params.id;
+  try {
+    await pool.query(`DELETE FROM personas WHERE id = $1`, [idPersona]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error al eliminar efectivo:", e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.put('/api/personas/:id', async (req, res) => {
+  const { 
+    vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, 
+    dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial,
+    celular, familiar_nombre_1, familiar_telefono_1, familiar_nombre_2, familiar_telefono_2 
+  } = req.body;
+  const idPersona = req.params.id;
+
+  try {
+    if (limpiar_credencial) {
+      await pool.query(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = $1`, [idPersona]);
+      return res.json({ success: true });
+    }
+
+    const actualQuery = await pool.query(`SELECT * FROM personas WHERE id = $1`, [idPersona]);
+    if (actualQuery.rows.length === 0) return res.status(404).json({ error: 'Persona no encontrada' });
+    const actual = actualQuery.rows[0];
+
+    const nuevoDni = (dni !== undefined && dni !== '') ? dni : actual.dni;
+    const nuevoNombre = (nombre_completo !== undefined && nombre_completo !== '') ? nombre_completo.toUpperCase() : actual.nombre_completo;
+    const nuevaJerarquia = (jerarquia_rol !== undefined && jerarquia_rol !== '') ? jerarquia_rol : actual.jerarquia_rol;
+    const nuevoChapa = (cargo_chapa !== undefined && cargo_chapa !== '') ? cargo_chapa : actual.cargo_chapa;
+    const nuevoCelular = celular !== undefined ? celular : actual.celular;
+    const famNom1 = familiar_nombre_1 !== undefined ? familiar_nombre_1 : actual.familiar_nombre_1;
+    const famTel1 = familiar_telefono_1 !== undefined ? familiar_telefono_1 : actual.familiar_telefono_1;
+    const famNom2 = familiar_nombre_2 !== undefined ? familiar_nombre_2 : actual.familiar_nombre_2;
+    const famTel2 = familiar_telefono_2 !== undefined ? familiar_telefono_2 : actual.familiar_telefono_2;
+    
+    let nuevaCredUrl = actual.credencial_url;
+    let nuevoToken = actual.credencial_token;
+    
+    if (credencial_url !== undefined && credencial_url !== '') {
+      nuevaCredUrl = credencial_url;
+      nuevoToken = credencial_url.trim().split('/').pop().replace('#', '');
+    } else if (credencial_token !== undefined && credencial_token !== '') {
+      nuevoToken = credencial_token;
+    }
+
+    const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+    const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
+
+    const sql = `
+      UPDATE personas 
+      SET dni = $1, nombre_completo = $2, jerarquia_rol = $3, cargo_chapa = $4, credencial_url = $5, credencial_token = $6, vehiculo_modelo = $7, vehiculo_patente = $8, celular = $9, familiar_nombre_1 = $10, familiar_telefono_1 = $11, familiar_nombre_2 = $12, familiar_telefono_2 = $13
+      WHERE id = $14
+    `;
+
+    await pool.query(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, nuevoCelular, famNom1, famTel1, famNom2, famTel2, idPersona]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error al actualizar persona:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/personas', async (req, res) => {
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token } = req.body;
+  if (!nombre_completo) return res.status(400).json({ error: 'Nombre obligatorio' });
+
+  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : (credencial_token || null);
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token]
+    );
+    res.json({ id: resultado.rows[0].id, success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/libro-guardia', async (req, res) => {
+  const { puesto, accion, protagonista, detalle, rubro } = req.body;
+  
+  const now = new Date();
+  const hora = now.toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false });
+  const fechaLocal = now.toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const fechaCompleta = `${fechaLocal} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+  const sql = `
+    INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVO', 0, 0)
+    RETURNING id
+  `;
+
+  try {
+    const resultado = await pool.query(sql, [
+      hora, 
+      fechaCompleta, 
+      puesto || 'Puesto 1 (Principal)', 
+      accion || 'INGRESO', 
+      protagonista || 'PERSONAL', 
+      detalle || 'A pie', 
+      rubro || 'PERSONAL'
+    ]);
+    res.json({ id: resultado.rows[0].id, success: true, hora });
+  } catch (err) {
+    console.error("Error al guardar en libro_guardia:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/libro-guardia', async (req, res) => {
+  const sql = `SELECT * FROM libro_guardia ORDER BY id DESC LIMIT 50`;
+  try {
+    const resultado = await pool.query(sql);
+    res.json(resultado.rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/libro-guardia/marcar-enviados', async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || ids.length === 0) return res.json({ success: true });
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+  try {
+    await pool.query(`UPDATE libro_guardia SET notificado_wa = 1 WHERE id IN (${placeholders})`, ids);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/fuerza-presente', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT protagonista, accion, detalle FROM libro_guardia ORDER BY id ASC`);
+    const movimientos = resultado.rows;
+
+    let vehiculosAdentro = 4;
+    let plantaAdentro = 8;
+    let cad1Adentro = 0;
+    let cad2Adentro = 0;
+    let cad3Adentro = 0;
+
+    let totalC1 = 61;
+    let totalC2 = 48;
+    let totalC3 = 75;
+
+    const estados = {};
+    (movimientos || []).forEach(m => {
+      estados[m.protagonista] = { accion: m.accion, detalle: m.detalle };
     });
 
-    function cambiarPerfilLogin() {
-      const rol = document.getElementById('login-rol-select').value;
-      const inputUser = document.getElementById('login-usuario');
-      const inputPin = document.getElementById('login-pin');
-      
-      if (rol === 'oficial') {
-        inputUser.value = 'oficial';
-        inputPin.value = '1234';
-      } else if (rol === 'suboficial') {
-        inputUser.value = 'suboficial';
-        inputPin.value = '5678';
-      } else if (rol === 'jefatura') {
-        inputUser.value = 'jefatura';
-        inputPin.value = '9999';
-      }
-    }
-
-    async function ejecutarLogin() {
-      const usuario = document.getElementById('login-usuario').value.trim();
-      const pin = document.getElementById('login-pin').value.trim();
-      const errBox = document.getElementById('login-error');
-
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario, pin })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          usuarioActual = data.usuario;
-          document.getElementById('modal-login').classList.add('hidden');
-          aplicarRestriccionesRol();
-          cargarTodo();
+    Object.entries(estados).forEach(([persona, data]) => {
+      if (data.accion && data.accion.includes('INGRESO')) {
+        if (data.detalle && (data.detalle.includes('Patente') || data.detalle.includes('Móvil') || data.detalle.includes('rodado'))) {
+          vehiculosAdentro++;
+        } else if (persona.includes('1° AÑO') || persona.includes('Cadete 1°')) {
+          cad1Adentro++;
+        } else if (persona.includes('2° AÑO') || persona.includes('Cadete 2°')) {
+          cad2Adentro++;
+        } else if (persona.includes('3° AÑO') || persona.includes('Cadete 3°')) {
+          cad3Adentro++;
         } else {
-          errBox.classList.remove('hidden');
-        }
-      } catch (err) {
-        console.error(err);
-        errBox.innerText = "Error de conexión con el servidor.";
-        errBox.classList.remove('hidden');
-      }
-    }
-
-    function aplicarRestriccionesRol() {
-      if (!usuarioActual) return;
-      const badgeRol = document.getElementById('badge-sesion-rol');
-      const btnMenuVisitas = document.getElementById('btn-menu-visitas');
-      const btnAgregarNuevo = document.getElementById('btn-agregar-nuevo-efectivo');
-      const btnFijarHora = document.getElementById('btn-fijar-hora-tope');
-
-      if (usuarioActual.rol === 'OFICIAL') {
-        badgeRol.innerText = "Oficial de Servicio (Control Total)";
-        badgeRol.className = "font-bold text-amber-400";
-        if (btnMenuVisitas) btnMenuVisitas.classList.add('hidden');
-      } else if (usuarioActual.rol === 'SUBOFICIAL') {
-        badgeRol.innerText = "Suboficial de Turno (Visitas y Mañana)";
-        badgeRol.className = "font-bold text-emerald-400";
-        if (btnMenuVisitas) {
-          btnMenuVisitas.classList.remove('hidden');
-          btnMenuVisitas.classList.add('inline-flex');
-        }
-      } else if (usuarioActual.rol === 'DIRECTIVO') {
-        badgeRol.innerText = "Jefatura / Rectorado (Modo Lectura)";
-        badgeRol.className = "font-bold text-purple-400";
-        if (btnMenuVisitas) btnMenuVisitas.classList.add('hidden');
-        if (btnAgregarNuevo) btnAgregarNuevo.classList.add('hidden');
-        if (btnFijarHora) btnFijarHora.classList.add('hidden');
-      }
-    }
-
-    function cerrarSesion() {
-      usuarioActual = null;
-      document.getElementById('login-pin').value = '';
-      document.getElementById('modal-login').classList.remove('hidden');
-    }
-
-    function abrirModalVisitasExternas() {
-      cargarListaVisitasExternas();
-      document.getElementById('modal-visitas-externas').classList.remove('hidden');
-    }
-
-    function cerrarModalVisitasExternas() {
-      document.getElementById('modal-visitas-externas').classList.add('hidden');
-    }
-
-    async function buscarVisitaPreviaPorDni() {
-      const dni = document.getElementById('visita-dni').value.trim();
-      if (!dni || dni.length < 6) return;
-
-      try {
-        const res = await fetch(`/api/buscar-visita-previa?dni=${encodeURIComponent(dni)}&_=${Date.now()}`);
-        const visitaPrevia = await res.json();
-
-        if (visitaPrevia) {
-          document.getElementById('visita-nombre').value = visitaPrevia.nombre_completo || '';
-          document.getElementById('visita-procedencia').value = visitaPrevia.procedencia || '';
-          document.getElementById('visita-destino').value = visitaPrevia.destino_area || '';
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function guardarVisitaExterna() {
-      const dni = document.getElementById('visita-dni').value.trim();
-      const nombre_completo = document.getElementById('visita-nombre').value.trim().toUpperCase();
-      const procedencia = document.getElementById('visita-procedencia').value.trim();
-      const motivo = document.getElementById('visita-motivo').value.trim();
-      const destino_area = document.getElementById('visita-destino').value.trim();
-
-      if (!nombre_completo || !motivo) {
-        alert('El Apellido y Nombre y el Motivo de la visita son obligatorios.');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/visitas-externas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dni,
-            nombre_completo,
-            procedencia,
-            motivo,
-            destino_area,
-            registrado_por: usuarioActual ? usuarioActual.nombre_completo : 'Suboficial'
-          })
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('visita-dni').value = '';
-          document.getElementById('visita-nombre').value = '';
-          document.getElementById('visita-procedencia').value = '';
-          document.getElementById('visita-motivo').value = '';
-          document.getElementById('visita-destino').value = '';
-          
-          alert('¡Visita / Comisión registrada correctamente!');
-          cargarListaVisitasExternas();
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function cargarListaVisitasExternas() {
-      const fecha = document.getElementById('filtro-fecha').value;
-      try {
-        const res = await fetch(`/api/visitas-externas?fecha=${fecha}&_=${Date.now()}`);
-        const lista = await res.json();
-        const tbody = document.getElementById('tabla-visitas-body');
-        tbody.innerHTML = '';
-
-        if (!Array.isArray(lista) || lista.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">Sin visitas ni comisiones externas registradas hoy.</td></tr>';
-          return;
-        }
-
-        lista.forEach(v => {
-          tbody.innerHTML += `
-            <tr class="hover:bg-slate-50">
-              <td class="p-2 font-mono font-bold text-slate-700">${v.fecha_hora.split(' ')[1] || v.fecha_hora}</td>
-              <td class="p-2 font-mono text-blue-600">${v.dni}</td>
-              <td class="p-2 font-bold text-slate-800">${v.nombre_completo}</td>
-              <td class="p-2 text-slate-600">${v.procedencia}</td>
-              <td class="p-2 text-slate-700">${v.motivo}</td>
-              <td class="p-2 font-semibold text-amber-700">${v.destino_area}</td>
-            </tr>
-          `;
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function cargarTodo() {
-      cargarLibro();
-      cargarFuerza();
-      cargarOficialServicio();
-      cargarConfiguracionHoraTope();
-    }
-
-    async function cargarConfiguracionHoraTope() {
-      try {
-        const res = await fetch(`/api/configuracion/hora_tope_ingreso?_=${Date.now()}`);
-        const d = await res.json();
-        if (d && d.valor) {
-          horaTopeGlobal = d.valor;
-          const inputTope = document.getElementById('input-hora-tope');
-          if (inputTope) inputTope.value = horaTopeGlobal;
-        }
-      } catch (e) {}
-    }
-
-    async function guardarHoraTope() {
-      const val = document.getElementById('input-hora-tope').value;
-      if (!val) return;
-      await fetch('/api/configuracion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clave: 'hora_tope_ingreso', valor: val })
-      });
-      horaTopeGlobal = val;
-      alert(`¡Hora tope fijada correctamente a las ${val} hs!`);
-      abrirModalCadetes();
-    }
-
-    function iniciarBusquedaPorVoz() {
-      const textoDictado = prompt("Escriba o dicte el apellido, DNI o N° de Legajo a buscar:");
-      if (!textoDictado) return;
-
-      const inputBuscar = document.getElementById('input-buscar');
-      inputBuscar.value = textoDictado;
-      inputBuscar.dispatchEvent(new Event('input'));
-    }
-
-    async function iniciarCamaraQR() {
-      const modal = document.getElementById('modal-scanner');
-      const video = document.getElementById('video-qr');
-      const statusText = document.getElementById('scan-status');
-
-      modal.classList.remove('hidden');
-      statusText.innerText = "Accediendo a la cámara...";
-
-      try {
-        streamVideo = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false
-        });
-
-        video.srcObject = streamVideo;
-        video.setAttribute("playsinline", true);
-        await video.play();
-
-        statusText.innerText = "Apunte al código QR...";
-        escanearFrameVideo();
-
-      } catch (err) {
-        console.error("Error cámara:", err);
-        statusText.innerText = "Error: no se pudo iniciar la cámara.";
-      }
-    }
-
-    function escanearFrameVideo() {
-      const video = document.getElementById('video-qr');
-      const canvas = document.getElementById('canvas-qr');
-      const ctx = canvas.getContext('2d');
-
-      const tick = () => {
-        if (!streamVideo) return;
-
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.height = video.videoHeight;
-          canvas.width = video.videoWidth;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          if (window.jsQR) {
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: "dontInvert",
-            });
-
-            if (code && code.data) {
-              cerrarCamaraQR();
-              procesarLecturaQR(code.data);
-              return;
-            }
-          }
-        }
-        scanInterval = requestAnimationFrame(tick);
-      };
-
-      scanInterval = requestAnimationFrame(tick);
-    }
-
-    function cerrarCamaraQR() {
-      if (scanInterval) {
-        cancelAnimationFrame(scanInterval);
-        scanInterval = null;
-      }
-      if (streamVideo) {
-        streamVideo.getTracks().forEach(track => track.stop());
-        streamVideo = null;
-      }
-      document.getElementById('modal-scanner').classList.add('hidden');
-    }
-
-    async function procesarLecturaQR(enlace) {
-      if (!enlace) return;
-      cerrarCamaraQR();
-
-      try {
-        const hash = enlace.trim().split('/').pop().replace('#', '');
-        const res = await fetch(`/api/buscar?q=${encodeURIComponent(hash)}&_=${Date.now()}`);
-        const datos = await res.json();
-        
-        if (datos && datos.length > 0) {
-          seleccionarPersona(datos[0]);
-        } else {
-          qrEscaneadoTemporal = enlace;
-          const apellidoBusqueda = prompt("El QR escaneado no está vinculado a nadie.\nIngrese el Apellido o Nombre del efectivo para buscarlo y asociarle este QR:");
-          if (!apellidoBusqueda) return;
-
-          const resBusqueda = await fetch(`/api/buscar?q=${encodeURIComponent(apellidoBusqueda)}&_=${Date.now()}`);
-          const listaEncontrada = await resBusqueda.json();
-
-          if (!listaEncontrada || listaEncontrada.length === 0) {
-            alert('No se encontró ningún efectivo con ese nombre.');
-            return;
-          }
-
-          let personaElegida = listaEncontrada[0];
-          if (listaEncontrada.length > 1) {
-            let opciones = listaEncontrada.map((p, idx) => `${idx + 1}: ${p.nombre_completo || p.nombre} (${p.jerarquia_rol || ''})`).join('\n');
-            let seleccion = prompt(`Se encontraron varios:\n${opciones}\nIngrese el número del efectivo correcto:`);
-            let idxElegido = parseInt(seleccion) - 1;
-            if (listaEncontrada[idxElegido]) {
-              personaElegida = listaEncontrada[idxElegido];
-            }
-          }
-
-          seleccionarPersona(personaElegida);
-          document.getElementById('btn-confirmar-qr').classList.remove('hidden');
-        }
-      } catch (err) {
-        console.error("Error al procesar lectura QR:", err);
-      }
-    }
-
-    async function confirmarYGuardarVinculacion() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Seleccione un efectivo primero.');
-        return;
-      }
-      
-      const enlaceA_Guardar = qrEscaneadoTemporal || document.getElementById('input-credencial-url')?.value;
-      
-      if (!enlaceA_Guardar) {
-        alert('No hay ningún código QR pendiente para guardar. Escanee un código primero.');
-        return;
-      }
-
-      const hash = enlaceA_Guardar.trim().split('/').pop().replace('#', '');
-
-      try {
-        const btnConf = document.getElementById('btn-confirmar-qr');
-        btnConf.innerText = "Guardando en la nube...";
-        btnConf.disabled = true;
-
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            credencial_url: enlaceA_Guardar,
-            credencial_token: hash
-          })
-        });
-
-        const resultado = await respuesta.json();
-        
-        btnConf.innerText = "Confirmar y Guardar Vinculación";
-        btnConf.disabled = false;
-
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = enlaceA_Guardar;
-          personaSeleccionada.credencial_token = hash;
-          qrEscaneadoTemporal = null;
-          seleccionarPersona(personaSeleccionada);
-          btnConf.classList.add('hidden');
-          alert('¡Credencial QR vinculada y guardada exitosamente en la base de datos!');
-        } else {
-          alert('Error al guardar: ' + (resultado.error || 'Desconocido'));
-        }
-      } catch (err) {
-        console.error("Error al confirmar QR:", err);
-        alert('Error de conexión al guardar la credencial.');
-        const btnConf = document.getElementById('btn-confirmar-qr');
-        btnConf.innerText = "Confirmar y Guardar Vinculación";
-        btnConf.disabled = false;
-      }
-    }
-
-    async function pegarQRManual() {
-      const enlace = prompt('Pegue el enlace o código QR de la credencial oficial:');
-      if (enlace) procesarLecturaQR(enlace);
-    }
-
-    function mostrarResultadosBusqueda(lista) {
-      const box = document.getElementById('resultados-busqueda');
-      box.innerHTML = '';
-      if (!Array.isArray(lista) || lista.length === 0) {
-        box.innerHTML = '<div class="p-2 text-xs text-slate-400">Sin resultados</div>';
-        box.classList.remove('hidden');
-        return;
-      }
-      lista.forEach(p => {
-        const nom = p.nombre_completo || p.nombre || 'Sin Nombre';
-        const jer = p.jerarquia_rol || p.jerarquia || '';
-        const chp = p.cargo_chapa || p.chapa || '';
-        const doc = p.dni ? `DNI: ${p.dni}` : (chp ? `N° de Legajo: ${chp}` : '');
-
-        const div = document.createElement('div');
-        div.className = 'p-2 hover:bg-slate-100 cursor-pointer border-b border-slate-100 flex justify-between items-center';
-        div.innerHTML = `<div><strong class="text-xs text-slate-800">${nom}</strong><br><span class="text-[10px] text-slate-500">${jer} ${doc ? '- ' + doc : ''}</span></div><span class="text-[10px] text-blue-600 font-mono">${chp ? 'Leg: ' + chp : ''}</span>`;
-        div.onclick = () => {
-          seleccionarPersona(p);
-          box.classList.add('hidden');
-          document.getElementById('input-buscar').value = '';
-        };
-        box.appendChild(div);
-      });
-      box.classList.remove('hidden');
-    }
-
-    function seleccionarPersona(p) {
-      personaSeleccionada = p;
-      const nom = p.nombre_completo || p.nombre || 'Personal';
-      const jer = p.jerarquia_rol || p.jerarquia || 'Personal';
-      const chp = p.cargo_chapa || p.chapa || 'S/D';
-      const doc = p.dni || 'S/D';
-
-      document.getElementById('persona-nombre').innerText = nom;
-      document.getElementById('persona-sub').innerText = jer;
-      document.getElementById('persona-det').innerText = `DNI: ${doc} | N° de Legajo: ${chp}`;
-      
-      const celular = p.celular || '';
-      const celSpan = document.getElementById('persona-celular');
-      const btnWa = document.getElementById('btn-whatsapp-cadete');
-      const btnCall = document.getElementById('btn-llamar-cadete');
-      const seccionBotonesPer = document.getElementById('seccion-botones-personal');
-      
-      if (celular) {
-        celSpan.innerText = celular;
-        let numClean = celular.replace(/\D/g, '');
-        if (!numClean.startsWith('54')) numClean = '549' + numClean;
-        btnWa.href = `https://api.whatsapp.com/send?phone=${numClean}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20I.E.S.P.`;
-        btnCall.href = `tel:${celular}`;
-        seccionBotonesPer.classList.remove('hidden');
-      } else {
-        celSpan.innerText = 'S/D';
-        seccionBotonesPer.classList.add('hidden');
-      }
-
-      const fam1Nom = p.familiar_nombre_1 || '';
-      const fam1Tel = p.familiar_telefono_1 || '';
-      const fam2Nom = p.familiar_nombre_2 || '';
-      const fam2Tel = p.familiar_telefono_2 || '';
-
-      const txtFam1 = document.getElementById('txt-fam-1');
-      const btnWaFam1 = document.getElementById('btn-wa-fam-1');
-      const btnCallFam1 = document.getElementById('btn-llamar-fam-1');
-      const accionesFam1 = document.getElementById('acciones-fam-1');
-
-      if (fam1Nom || fam1Tel) {
-        txtFam1.innerText = `1°: ${fam1Nom ? fam1Nom + ': ' : ''}${fam1Tel || 'S/Tel'}`;
-        if (fam1Tel) {
-          let num1Clean = fam1Tel.replace(/\D/g, '');
-          if (!num1Clean.startsWith('54')) num1Clean = '549' + num1Clean;
-          btnWaFam1.href = `https://api.whatsapp.com/send?phone=${num1Clean}&text=Hola,%20nos%20comunicamos%20desde%20la%20Guardia%20del%20I.E.S.P.%20por%20su%20familiar%20${encodeURIComponent(nom)}`;
-          btnCallFam1.href = `tel:${fam1Tel}`;
-          accionesFam1.classList.remove('hidden');
-        } else {
-          accionesFam1.classList.add('hidden');
-        }
-      } else {
-        txtFam1.innerText = '1°: Sin registrar';
-        accionesFam1.classList.add('hidden');
-      }
-
-      const txtFam2 = document.getElementById('txt-fam-2');
-      const btnWaFam2 = document.getElementById('btn-wa-fam-2');
-      const btnCallFam2 = document.getElementById('btn-llamar-fam-2');
-      const accionesFam2 = document.getElementById('acciones-fam-2');
-
-      if (fam2Nom || fam2Tel) {
-        txtFam2.innerText = `2°: ${fam2Nom ? fam2Nom + ': ' : ''}${fam2Tel || 'S/Tel'}`;
-        if (fam2Tel) {
-          let num2Clean = fam2Tel.replace(/\D/g, '');
-          if (!num2Clean.startsWith('54')) num2Clean = '549' + num2Clean;
-          btnWaFam2.href = `https://api.whatsapp.com/send?phone=${num2Clean}&text=Hola,%20nos%20comunicamos%20desde%20la%20Guardia%20del%20I.E.S.P.%20por%20su%20familiar%20${encodeURIComponent(nom)}`;
-          btnCallFam2.href = `tel:${fam2Tel}`;
-          accionesFam2.classList.remove('hidden');
-        } else {
-          accionesFam2.classList.add('hidden');
-        }
-      } else {
-        txtFam2.innerText = '2°: Sin registrar';
-        accionesFam2.classList.add('hidden');
-      }
-
-      if (p.id) {
-        document.getElementById('btn-editar-persona').classList.remove('hidden');
-      } else {
-        document.getElementById('btn-editar-persona').classList.add('hidden');
-      }
-
-      let enlace = p.credencial_url;
-      if (!enlace && p.credencial_token) {
-        enlace = `https://credenciales.dpd1.ar/publicoQR/${p.credencial_token}`;
-      } else if (!enlace && p.credencial) {
-        enlace = p.credencial;
-      }
-
-      const btnCred = document.getElementById('btn-credencial');
-      const btnDesvincular = document.getElementById('btn-desvincular-qr');
-      const hashSpan = document.getElementById('persona-hash');
-      const imgFoto = document.getElementById('foto-persona');
-
-      if (enlace) {
-        btnCred.href = enlace;
-        btnCred.classList.remove('hidden');
-        btnDesvincular.classList.remove('hidden');
-        const tokenDisplay = p.credencial_token || enlace.trim().split('/').pop().replace('#', '');
-        hashSpan.innerText = '#' + tokenDisplay.slice(0, 8);
-
-        imgFoto.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
-        imgFoto.onerror = () => { imgFoto.src = placeholderSvg; };
-      } else {
-        btnCred.classList.add('hidden');
-        btnDesvincular.classList.add('hidden');
-        hashSpan.innerText = 'Sin Enlace';
-        imgFoto.src = placeholderSvg;
-      }
-
-      if (qrEscaneadoTemporal && p.id) {
-        document.getElementById('btn-confirmar-qr').classList.remove('hidden');
-      }
-
-      let patente = null;
-      let modelo = null;
-
-      for (const [clave, valor] of Object.entries(p)) {
-        if (!valor || typeof valor !== 'string') continue;
-        const k = clave.toLowerCase();
-        const v = valor.trim();
-
-        if ((k.includes('patente') || k.includes('dominio')) && v !== '' && v !== 'null') {
-          patente = v;
-        }
-        if ((k.includes('modelo') || k.includes('marca') || k.includes('rodado') || k.includes('vehiculo')) && v !== '' && v !== 'null') {
-          modelo = v;
+          plantaAdentro++;
         }
       }
-
-      personaSeleccionada.patente_detectada = patente;
-      personaSeleccionada.modelo_detectado = modelo;
-
-      if (patente) {
-        document.getElementById('seccion-con-vehiculo').classList.remove('hidden');
-        document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-        document.getElementById('persona-patente').innerText = patente.toUpperCase();
-        document.getElementById('persona-modelo').innerText = modelo || 'Vehículo Registrado';
-      } else {
-        document.getElementById('seccion-con-vehiculo').classList.add('hidden');
-        document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-      }
-    }
-
-    function limpiarSeleccion() {
-      personaSeleccionada = null;
-      qrEscaneadoTemporal = null;
-      document.getElementById('persona-nombre').innerText = 'Seleccione una persona';
-      document.getElementById('persona-sub').innerText = 'Jerarquía / Rol';
-      document.getElementById('persona-det').innerText = 'DNI / N° de Legajo';
-      document.getElementById('persona-celular').innerText = 'S/D';
-      document.getElementById('seccion-botones-personal').classList.add('hidden');
-      document.getElementById('txt-fam-1').innerText = '1°: Sin registrar';
-      document.getElementById('acciones-fam-1').classList.add('hidden');
-      document.getElementById('txt-fam-2').innerText = '2°: Sin registrar';
-      document.getElementById('acciones-fam-2').classList.add('hidden');
-      document.getElementById('foto-persona').src = placeholderSvg;
-      document.getElementById('btn-credencial').classList.add('hidden');
-      document.getElementById('btn-desvincular-qr').classList.add('hidden');
-      document.getElementById('btn-editar-persona').classList.add('hidden');
-      document.getElementById('btn-confirmar-qr').classList.add('hidden');
-      document.getElementById('persona-hash').innerText = 'Sin Enlace';
-      document.getElementById('seccion-con-vehiculo').classList.add('hidden');
-      document.getElementById('seccion-sin-vehiculo').classList.add('hidden');
-    }
-
-    async function desvincularQrPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) return;
-      if (!confirm("¿Está seguro que desea desvincular este código QR?")) return;
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limpiar_credencial: true })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = null;
-          personaSeleccionada.credencial_token = null;
-          seleccionarPersona(personaSeleccionada);
-          alert('QR desvinculado correctamente.');
-        }
-      } catch (err) {
-        console.error("Error al desvincular QR:", err);
-      }
-    }
-
-    async function cargarLibro() {
-      const fecha = document.getElementById('filtro-fecha').value;
-      try {
-        const res = await fetch(`/api/libro-guardia?fecha=${fecha}&_=${Date.now()}`);
-        const datos = await res.json();
-        registrosCargados = Array.isArray(datos) ? datos : [];
-        const tbody = document.getElementById('tabla-guardia');
-        tbody.innerHTML = '';
-        document.getElementById('total-asientos').innerText = registrosCargados.length;
-
-        registrosCargados.forEach(row => {
-          const esIngreso = row.accion && row.accion.includes('INGRESO');
-          const badgeClass = esIngreso ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
-          const badgeWa = row.notificado_wa === 1 
-            ? '<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-check mr-1"></i> Enviado</span>'
-            : '<span class="bg-slate-100 text-slate-500 border border-slate-300 px-2 py-0.5 rounded text-[10px] font-semibold inline-flex items-center"><i class="fa-solid fa-clock mr-1"></i> Pendiente</span>';
-
-          tbody.innerHTML += `
-            <tr class="hover:bg-slate-50 transition-colors">
-              <td class="p-2 text-center"><input type="checkbox" class="chk-fila" value="${row.id}" /></td>
-              <td class="p-2 font-mono font-bold text-slate-700">${row.hora}</td>
-              <td class="p-2 text-slate-600">${row.puesto}</td>
-              <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${row.accion}</span></td>
-              <td class="p-2 font-semibold text-slate-800">${row.protagonista}</td>
-              <td class="p-2 text-slate-500">${row.detalle}</td>
-              <td class="p-2 text-center">${badgeWa}</td>
-            </tr>
-          `;
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function registrarMovimiento(tipo, modo) {
-      if (!personaSeleccionada) {
-        alert('⚠️ Seleccione una persona primero buscando por DNI, Apellido o escaneando su QR.');
-        return;
-      }
-      
-      const puesto = document.getElementById('sel-puesto').value;
-      let accion = tipo;
-      let detalle = modo;
-
-      const nom = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
-      const jer = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      const pat = personaSeleccionada.patente_detectada || personaSeleccionada.vehiculo_patente || '';
-
-      if (modo.includes('Móvil')) {
-        accion = `VEHÍCULO (${tipo})`;
-        detalle = `${tipo} c/ rodado [Patente: ${pat.toUpperCase() || 'S/D'}]`;
-      }
-
-      const payload = {
-        puesto,
-        accion,
-        protagonista: `${jer} ${nom}`.trim(),
-        detalle,
-        rubro: 'PERSONAL'
-      };
-
-      try {
-        const res = await fetch('/api/libro-guardia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const dataRes = await res.json();
-        
-        if (dataRes && dataRes.success) {
-          mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
-        } else {
-          alert('El servidor no pudo registrar el movimiento: ' + (dataRes.error || 'Desconocido'));
-        }
-      } catch (e) {
-        console.error("Error al registrar movimiento:", e);
-        alert('Error de conexión al intentar registrar el movimiento.');
-      }
-    }
-
-    function mostrarPantallaConfirmacionVisual(persona, tipoAccion, horaMovimiento, puestoActual) {
-      const modal = document.getElementById('modal-confirmacion-visual');
-      const badge = document.getElementById('badge-resultado-mov');
-      const img = document.getElementById('img-visual-foto');
-      const nombre = document.getElementById('txt-visual-nombre');
-      const jerarquia = document.getElementById('txt-visual-jerarquia');
-      const chapa = document.getElementById('txt-visual-chapa');
-      const accion = document.getElementById('txt-visual-accion');
-      const hora = document.getElementById('txt-visual-hora');
-      const puesto = document.getElementById('txt-visual-puesto');
-
-      const nom = persona.nombre_completo || persona.nombre || 'Personal';
-      const jer = persona.jerarquia_rol || persona.jerarquia || '';
-      const leg = persona.cargo_chapa || persona.chapa || 'S/D';
-
-      nombre.innerText = nom;
-      jerarquia.innerText = jer;
-      chapa.innerText = `N° Legajo: ${leg}`;
-      hora.innerText = horaMovimiento;
-      puesto.innerText = puestoActual;
-      accion.innerText = tipoAccion;
-
-      if (tipoAccion.includes('INGRESO')) {
-        badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1 bg-emerald-100 text-emerald-800 border border-emerald-300';
-        badge.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> INGRESO REGISTRADO';
-      } else {
-        badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1 bg-rose-100 text-rose-800 border border-rose-300';
-        badge.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> EGRESO REGISTRADO';
-      }
-
-      let enlace = persona.credencial_url;
-      if (!enlace && persona.credencial_token) {
-        enlace = `https://credenciales.dpd1.ar/publicoQR/${persona.credencial_token}`;
-      }
-
-      if (enlace) {
-        img.src = `/api/extraer-foto?url=${encodeURIComponent(enlace)}`;
-        img.onerror = () => { img.src = placeholderSvg; };
-      } else {
-        img.src = placeholderSvg;
-      }
-
-      modal.classList.remove('hidden');
-    }
-
-    function cerrarModalVisual() {
-      document.getElementById('modal-confirmacion-visual').classList.add('hidden');
-      limpiarSeleccion();
-      cargarLibro();
-      cargarFuerza();
-    }
-
-    async function cargarFuerza() {
-      try {
-        const res = await fetch(`/api/fuerza-presente?_=${Date.now()}`);
-        const d = await res.json();
-        if (d) {
-          document.getElementById('f-planta').innerText = `${d.plantaPresente || 8} / 131`;
-          document.getElementById('f-vehiculos').innerText = d.vehiculosPredio || 4;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function cargarOficialServicio() {
-      try {
-        const res = await fetch(`/api/configuracion/oficial_servicio?_=${Date.now()}`);
-        const d = await res.json();
-        if (d && d.valor) {
-          document.getElementById('txt-oficial-servicio').innerText = d.valor;
-        }
-        const resTel = await fetch(`/api/configuracion/telefono_oficial?_=${Date.now()}`);
-        const dTel = await resTel.json();
-        if (dTel && dTel.valor) {
-          telefonoOficialGlobal = dTel.valor;
-        }
-        let cleanTel = telefonoOficialGlobal.replace(/\D/g, '');
-        if (!cleanTel.startsWith('54')) cleanTel = '549' + cleanTel;
-        document.getElementById('btn-wa-oficial').href = `https://api.whatsapp.com/send?phone=${cleanTel}&text=Hola%20Oficial,%20nos%20comunicamos%20desde%20la%20Guardia.`;
-        document.getElementById('btn-call-oficial').href = `tel:${telefonoOficialGlobal}`;
-      } catch (e) {}
-    }
-
-    function toggleTodos(master) {
-      document.querySelectorAll('.chk-fila').forEach(cb => cb.checked = master.checked);
-    }
-
-    async function enviarSeleccionadosWhatsApp() {
-      const checkboxes = Array.from(document.querySelectorAll('.chk-fila:checked'));
-      if (checkboxes.length === 0) {
-        alert('Seleccione las filas a enviar.');
-        return;
-      }
-
-      const idsSeleccionados = checkboxes.map(cb => parseInt(cb.value));
-      const filasAEnviar = registrosCargados.filter(r => idsSeleccionados.includes(r.id));
-
-      if (filasAEnviar.length === 0) return;
-
-      const fecha = document.getElementById('filtro-fecha').value;
-      const oficial = document.getElementById('txt-oficial-servicio').innerText;
-      const puestoActivo = document.getElementById('sel-puesto').value;
-
-      let mensaje = `*PARTE DE GUARDIA - I.E.S.P. GENERAL SAN MARTÍN*\n`;
-      mensaje += `*Fecha:* ${fecha} | *Oficial de Servicio:* ${oficial} | *Puesto:* ${puestoActivo}\n\n`;
-
-      filasAEnviar.forEach((m, idx) => {
-        mensaje += `${idx + 1}. [${m.hora}] *${m.accion}* - ${m.protagonista}\n`;
-        mensaje += `    _${m.detalle}_ (Puesto: ${m.puesto})\n\n`;
-      });
-
-      await fetch('/api/libro-guardia/marcar-enviados', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: idsSeleccionados })
-      });
-
-      cargarLibro();
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
-    }
-
-    async function abrirModalFuerzaEfectiva() {
-      try {
-        const res = await fetch(`/api/personal-completo?_=${Date.now()}`);
-        const lista = await res.json();
-        directorioGlobal = Array.isArray(lista) ? lista : [];
-        renderizarDirectorio(directorioGlobal);
-        document.getElementById('modal-fuerza-efectiva').classList.remove('hidden');
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function renderizarDirectorio(lista) {
-      const tbody = document.getElementById('tabla-directorio-body');
-      tbody.innerHTML = '';
-      if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Sin registros en la base de datos.</td></tr>';
-        return;
-      }
-      lista.forEach(p => {
-        const nom = p.nombre_completo || p.nombre || 'S/D';
-        const jer = p.jerarquia_rol || p.jerarquia || '';
-        const chp = p.cargo_chapa || p.chapa || 'S/D';
-        
-        let botonesAccion = `
-          <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Seleccionar">Sel.</button>
-          <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Editar"><i class="fa-solid fa-pen"></i></button>
-        `;
-        if (usuarioActual && usuarioActual.rol !== 'DIRECTIVO') {
-          botonesAccion += `<button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Eliminar"><i class="fa-solid fa-trash"></i></button>`;
-        }
-
-        tbody.innerHTML += `
-          <tr class="hover:bg-slate-50">
-            <td class="p-2 font-bold text-slate-800">${nom}</td>
-            <td class="p-2 text-slate-500">${jer}</td>
-            <td class="p-2 font-mono text-blue-600">${chp}</td>
-            <td class="p-2 text-center space-x-1 whitespace-nowrap">${botonesAccion}</td>
-          </tr>
-        `;
-      });
-    }
-
-    function filtrarDirectorio() {
-      const txt = document.getElementById('filtro-directorio').value.toLowerCase();
-      const filtrados = directorioGlobal.filter(p => {
-        const n = (p.nombre_completo || p.nombre || '').toLowerCase();
-        const j = (p.jerarquia_rol || p.jerarquia || '').toLowerCase();
-        const c = (p.cargo_chapa || p.chapa || '').toLowerCase();
-        return n.includes(txt) || j.includes(txt) || c.includes(txt);
-      });
-      renderizarDirectorio(filtrados);
-    }
-
-    function seleccionarEfectivoDirectorio(p) {
-      seleccionarPersona(p);
-      cerrarModalFuerzaEfectiva();
-    }
-
-    function editarDesdeDirectorio(p) {
-      cerrarModalFuerzaEfectiva();
-      seleccionarPersona(p);
-      abrirModalEditarPersona();
-    }
-
-    async function eliminarEfectivo(id) {
-      if (!confirm("¿Está seguro que desea eliminar este efectivo de la base de datos?")) return;
-      try {
-        const res = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
-        const resultado = await res.json();
-        
-        if (resultado.success) {
-          alert('Efectivo eliminado correctamente.');
-          if (personaSeleccionada && personaSeleccionada.id === id) {
-            limpiarSeleccion();
-          }
-          const resDirectorio = await fetch(`/api/personal-completo?_=${Date.now()}`);
-          directorioGlobal = await resDirectorio.json();
-          renderizarDirectorio(directorioGlobal);
-          cargarTodo();
-        } else {
-          alert('No se pudo eliminar el registro.');
-        }
-      } catch (err) {
-        console.error("Error al eliminar:", err);
-      }
-    }
-
-    function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
-
-    async function abrirModalCadetes() {
-      try {
-        const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
-        const personal = await resPersonal.json();
-
-        const fechaHoy = document.getElementById('filtro-fecha').value;
-        const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
-        const movimientos = await resLibro.json();
-
-        const resNovedades = await fetch(`/api/novedades-cadetes?fecha=${fechaHoy}&_=${Date.now()}`);
-        const novedades = await resNovedades.json();
-
-        cadetesGlobal = personal.filter(p => {
-          const jer = (p.jerarquia_rol || '').toLowerCase();
-          return jer.includes('cadete');
-        });
-
-        renderizarTablaCadetes(cadetesGlobal, movimientos, novedades);
-        document.getElementById('modal-cadetes').classList.remove('hidden');
-      } catch (err) {
-        console.error("Error al abrir panel de cadetes:", err);
-      }
-    }
-
-    function renderizarTablaCadetes(listaCadetes, movimientos, novedades) {
-      const tbody = document.getElementById('tabla-asistencia-cadetes');
-      tbody.innerHTML = '';
-
-      let c1Total = 0, c1Ausentes = 0, c1Presentes = 0;
-      let c2Total = 0, c2Ausentes = 0, c2Presentes = 0;
-      let c3Total = 0, c3Ausentes = 0, c3Presentes = 0;
-
-      cadetesGlobal.forEach(cad => {
-        const jer = (cad.jerarquia_rol || '').toLowerCase();
-        if (jer.includes('1°') || jer.includes('primer')) c1Total++;
-        else if (jer.includes('2°') || jer.includes('segundo')) c2Total++;
-        else if (jer.includes('3°') || jer.includes('tercer')) c3Total++;
-      });
-
-      if (!listaCadetes || listaCadetes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">No hay cadetes registrados en el sistema.</td></tr>';
-        return;
-      }
-
-      listaCadetes.forEach(cad => {
-        const jer = cad.jerarquia_rol || '';
-        const nom = cad.nombre_completo || cad.nombre || '';
-        const chp = cad.cargo_chapa || cad.chapa || 'S/D';
-        const cel = cad.celular || '';
-        const fam1Tel = cad.familiar_telefono_1 || '';
-
-        const ultimoMov = movimientos.find(m => m.protagonista.includes(nom));
-        const novedadReg = (novedades || []).find(n => n.persona_id === cad.id);
-
-        let estadoTxt = 'PRESENTE (A TIEMPO)';
-        let badgeClase = 'bg-emerald-100 text-emerald-800 font-bold';
-        let horaMov = 'Sin registrar';
-        let esAusente = false;
-
-        if (novedreg = novedadReg) {
-          if (novedreg.estado === 'COMISION') {
-            estadoTxt = 'EN COMISIÓN';
-            badgeClase = 'bg-blue-100 text-blue-800 font-bold';
-            horaMov = novedreg.observacion || 'Justificado';
-          } else if (novedreg.estado === 'ENFERMEDAD') {
-            estadoTxt = 'ENFERMEDAD / PARTE';
-            badgeClase = 'bg-amber-100 text-amber-800 font-bold';
-            horaMov = novedreg.observacion || 'Licencia médica';
-          } else if (novedreg.estado === 'AVISO') {
-            estadoTxt = 'AVISO TELEFÓNICO';
-            badgeClase = 'bg-indigo-100 text-indigo-800 font-bold';
-            horaMov = novedreg.observacion || 'Aviso previo';
-          } else if (novedreg.estado === 'AUSENTE') {
-            estadoTxt = 'AUSENTE INJUSTIFICADO';
-            badgeClase = 'bg-rose-100 text-rose-800 font-bold';
-            esAusente = true;
-          }
-        } else if (ultimoMov) {
-          horaMov = `${ultimoMov.hora} (${ultimoMov.puesto})`;
-          if (ultimoMov.accion && ultimoMov.accion.includes('EGRESO')) {
-            estadoTxt = 'FUERA DEL PREDIO';
-            badgeClase = 'bg-slate-200 text-slate-700';
-          } else if (ultimoMov.accion && ultimoMov.accion.includes('INGRESO')) {
-            if (ultimoMov.hora > horaTopeGlobal) {
-              estadoTxt = `TARDE (${ultimoMov.hora})`;
-              badgeClase = 'bg-orange-100 text-orange-800 font-bold';
-            }
-          }
-        } else {
-          const horaActualStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-          if (horaActualStr > horaTopeGlobal) {
-            estadoTxt = 'AUSENTE';
-            badgeClase = 'bg-rose-100 text-rose-800 font-bold';
-            esAusente = true;
-          } else {
-            estadoTxt = 'PENDIENTE DE INGRESO';
-            badgeClase = 'bg-slate-100 text-slate-600';
-          }
-        }
-
-        const jerLower = jer.toLowerCase();
-        if (jerLower.includes('1°') || jerLower.includes('primer')) {
-          if (esAusente) c1Ausentes++;
-          else c1Presentes++;
-        } else if (jerLower.includes('2°') || jerLower.includes('segundo')) {
-          if (esAusente) c2Ausentes++;
-          else c2Presentes++;
-        } else if (jerLower.includes('3°') || jerLower.includes('tercer')) {
-          if (esAusente) c3Ausentes++;
-          else c3Presentes++;
-        }
-
-        let waLinkCadete = cel ? `https://api.whatsapp.com/send?phone=${cel.replace(/\D/g, '')}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20IESP.` : '#';
-        let callLinkCadete = cel ? `tel:${cel}` : '#';
-
-        tbody.innerHTML += `
-          <tr class="hover:bg-slate-50">
-            <td class="p-2 font-semibold text-slate-700">${jer}</td>
-            <td class="p-2 font-mono text-purple-600 font-bold">${chp}</td>
-            <td class="p-2 font-bold text-slate-800">${nom}</td>
-            <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] ${badgeClase}">${estadoTxt}</span></td>
-            <td class="p-2 text-center text-slate-600 font-mono">${horaMov}</td>
-            <td class="p-2 text-center space-x-1 whitespace-nowrap">
-              ${cel ? `<a href="${waLinkCadete}" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i> WA</a>` : ''}
-              ${cel ? `<a href="${callLinkCadete}" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-bold" title="Llamar"><i class="fa-solid fa-phone"></i> Llamar</a>` : ''}
-              <button onclick='abrirModalNovedad(${JSON.stringify(cad)})' class="bg-slate-800 hover:bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-semibold" title="Novedad">Novedad</button>
-            </td>
-          </tr>
-        `;
-      });
-
-      document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
-      document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
-      document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;
-      
-      const fCad1 = document.getElementById('f-cad1');
-      const fCad2 = document.getElementById('f-cad2');
-      const fCad3 = document.getElementById('f-cad3');
-      if (fCad1) fCad1.innerText = `${c1Presentes} / ${c1Total}`;
-      if (fCad2) fCad2.innerText = `${c2Presentes} / ${c2Total}`;
-      if (fCad3) fCad3.innerText = `${c3Presentes} / ${c3Total}`;
-    }
-
-    function abrirModalNovedad(cad) {
-      cadeteSeleccionadoParaNovedad = cad;
-      document.getElementById('novedad-cadete-nombre').innerText = `CADETE: ${cad.nombre_completo || cad.nombre} (${cad.jerarquia_rol})`;
-      document.getElementById('novedad-observacion').value = '';
-      document.getElementById('modal-novedad-cadete').classList.remove('hidden');
-    }
-
-    function cerrarModalNovedad() {
-      document.getElementById('modal-novedad-cadete').classList.add('hidden');
-    }
-
-    async function guardarNovedadCadete() {
-      if (!cadeteSeleccionadoParaNovedad) return;
-      const estado = document.getElementById('novedad-estado-select').value;
-      const observacion = document.getElementById('novedad-observacion').value.trim();
-      const fecha = document.getElementById('filtro-fecha').value;
-
-      try {
-        await fetch('/api/novedades-cadetes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            persona_id: cadeteSeleccionadoParaNovedad.id,
-            fecha,
-            estado,
-            observacion,
-            registrado_por: usuarioActual ? usuarioActual.nombre_completo : 'Oficial'
-          })
-        });
-
-        cerrarModalNovedad();
-        alert('¡Novedad registrada con éxito!');
-        abrirModalCadetes();
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function enviarParteAusentesWhatsApp() {
-      const destino = document.getElementById('sel-destino-parte').value;
-      const fecha = document.getElementById('filtro-fecha').value;
-      const oficial = document.getElementById('txt-oficial-servicio').innerText;
-
-      try {
-        const resPers = await fetch(`/api/personal-completo?_=${Date.now()}`);
-        const personal = await resPers.json();
-        const resNov = await fetch(`/api/novedades-cadetes?fecha=${fecha}&_=${Date.now()}`);
-        const novedades = await resNov.json();
-        const resLibro = await fetch(`/api/libro-guardia?fecha=${fecha}&_=${Date.now()}`);
-        const movimientos = await resLibro.json();
-
-        const cadetes = personal.filter(p => (p.jerarquia_rol || '').toLowerCase().includes('cadete'));
-
-        let mensaje = `*PARTE DE ASISTENCIA Y NOVEDADES DE CADETES*\n`;
-        mensaje += `*Instituto:* I.E.S.P. Gral. San Martín\n`;
-        mensaje += `*Fecha:* ${fecha} | *Hora Tope:* ${horaTopeGlobal} hs\n`;
-        mensaje += `*Registrado por:* ${usuarioActual ? usuarioActual.nombre_completo : oficial}\n`;
-        mensaje += `*Destinatario:* ${destino}\n\n`;
-
-        let conNovedades = 0;
-        cadetes.forEach((cad, idx) => {
-          const nov = novedades.find(n => n.persona_id === cad.id);
-          const mov = movimientos.find(m => m.protagonista.includes(cad.nombre_completo || cad.nombre));
-
-          if (nov || !mov) {
-            conNovedades++;
-            let estadoDesc = nov ? nov.estado : 'AUSENTE SIN AVISO';
-            let detalle = nov ? nov.observacion : 'Sin registrar ingreso';
-            mensaje += `${conNovedades}. *${cad.nombre_completo || cad.nombre}* (${cad.jerarquia_rol}) - [_${estadoDesc}_]: ${detalle}\n`;
-          }
-        });
-
-        if (conNovedades === 0) {
-          mensaje += `_Sin novedades ni ausencias registradas. Plantel completo._\n`;
-        }
-
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`, '_blank');
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function filtrarCursoCadetes(curso) {
-      const fechaHoy = document.getElementById('filtro-fecha').value;
-      const resLibro = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
-      const movimientos = await resLibro.json();
-      const resNov = await fetch(`/api/novedades-cadetes?fecha=${fechaHoy}&_=${Date.now()}`);
-      const novedades = await resNov.json();
-
-      if (curso === 'TODOS') {
-        renderizarTablaCadetes(cadetesGlobal, movimientos, novedades);
-      } else {
-        const filtrados = cadetesGlobal.filter(c => (c.jerarquia_rol || '').includes(curso));
-        renderizarTablaCadetes(filtrados, movimientos, novedades);
-      }
-    }
-
-    function cerrarModalCadetes() {
-      document.getElementById('modal-cadetes').classList.add('hidden');
-    }
-
-    function abrirModalCredencial() {
-      if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
-        return;
-      }
-      document.getElementById('input-credencial-url').value = personaSeleccionada.credencial_url || '';
-      document.getElementById('modal-credencial').classList.remove('hidden');
-    }
-
-    function cerrarModalCredencial() {
-      document.getElementById('modal-credencial').classList.add('hidden');
-    }
-
-    async function guardarCredencialPersona() {
-      if (!personaSeleccionada || !personaSeleccionada.id) {
-        alert('Debe buscar y seleccionar a un efectivo registrado primero.');
-        return;
-      }
-
-      let val = document.getElementById('input-credencial-url').value.trim();
-      if (!val) return;
-
-      if (!val.startsWith('http')) {
-        val = `https://credenciales.dpd1.ar/publicoQR/${val}`;
-      }
-
-      const hash = val.trim().split('/').pop().replace('#', '');
-
-      try {
-        const respuesta = await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            credencial_url: val,
-            credencial_token: hash
-          })
-        });
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          personaSeleccionada.credencial_url = val;
-          personaSeleccionada.credencial_token = hash;
-          seleccionarPersona(personaSeleccionada);
-          cerrarModalCredencial();
-          alert('¡Credencial vinculada y guardada correctamente!');
-        }
-      } catch (err) {
-        console.error("Error al guardar credencial:", err);
-      }
-    }
-
-    function abrirModalEditarPersona() {
-      if (!personaSeleccionada) return;
-      document.getElementById('edit-dni').value = personaSeleccionada.dni || '';
-      document.getElementById('edit-chapa').value = personaSeleccionada.cargo_chapa || personaSeleccionada.chapa || '';
-      document.getElementById('edit-nombre').value = personaSeleccionada.nombre_completo || personaSeleccionada.nombre || '';
-      document.getElementById('edit-jerarquia').value = personaSeleccionada.jerarquia_rol || personaSeleccionada.jerarquia || '';
-      document.getElementById('edit-celular').value = personaSeleccionada.celular || '';
-      document.getElementById('edit-fam1-nombre').value = personaSeleccionada.familiar_nombre_1 || '';
-      document.getElementById('edit-fam1-tel').value = personaSeleccionada.familiar_telefono_1 || '';
-      document.getElementById('edit-fam2-nombre').value = personaSeleccionada.familiar_nombre_2 || '';
-      document.getElementById('edit-fam2-tel').value = personaSeleccionada.familiar_telefono_2 || '';
-      document.getElementById('modal-editar-persona').classList.remove('hidden');
-    }
-    
-    function cerrarModalEditarPersona() { document.getElementById('modal-editar-persona').classList.add('hidden'); }
-
-    async function guardarEdicionPersona() {
-      const dni = document.getElementById('edit-dni').value.trim();
-      const cargo_chapa = document.getElementById('edit-chapa').value.trim();
-      const nombre_completo = document.getElementById('edit-nombre').value.trim().toUpperCase();
-      const jerarquia_rol = document.getElementById('edit-jerarquia').value.trim();
-      const celular = document.getElementById('edit-celular').value.trim();
-      const familiar_nombre_1 = document.getElementById('edit-fam1-nombre').value.trim();
-      const familiar_telefono_1 = document.getElementById('edit-fam1-tel').value.trim();
-      const familiar_nombre_2 = document.getElementById('edit-fam2-nombre').value.trim();
-      const familiar_telefono_2 = document.getElementById('edit-fam2-tel').value.trim();
-
-      if (!nombre_completo) {
-        alert('El Apellido y Nombre son obligatorios.');
-        return;
-      }
-
-      let idReal = personaSeleccionada ? personaSeleccionada.id : null;
-
-      try {
-        let respuesta;
-        const payloadData = { 
-          dni, cargo_chapa, nombre_completo, jerarquia_rol, 
-          celular, familiar_nombre_1, familiar_telefono_1, 
-          familiar_nombre_2, familiar_telefono_2 
-        };
-
-        if (idReal) {
-          respuesta = await fetch(`/api/personas/${idReal}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadData)
-          });
-        } else {
-          respuesta = await fetch('/api/personas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadData)
-          });
-        }
-
-        const resultado = await respuesta.json();
-        if (resultado.success) {
-          cerrarModalEditarPersona();
-          alert('¡Modificación y contactos guardados con éxito!');
-          
-          const idBuscado = idReal || resultado.id;
-          if (idBuscado) {
-            const resFresca = await fetch(`/api/buscar?q=${encodeURIComponent(idBuscado)}&_=${Date.now()}`);
-            const listaFresca = await resFresca.json();
-            if (listaFresca.length > 0) seleccionarPersona(listaFresca[0]);
-          }
-        } else {
-          alert('El servidor rechazó la operación: ' + (resultado.error || 'Desconocido'));
-        }
-      } catch (err) {
-        console.error("Error al guardar edición:", err);
-      }
-    }
-
-    function abrirModalVehiculo() {
-      if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
-        return;
-      }
-      document.getElementById('vehiculo-modelo-input').value = personaSeleccionada.modelo_detectado || '';
-      document.getElementById('vehiculo-patente-input').value = personaSeleccionada.patente_detectada || '';
-      document.getElementById('modal-vehiculo').classList.remove('hidden');
-    }
-    
-    function cerrarModalVehiculo() { document.getElementById('modal-vehiculo').classList.add('hidden'); }
-    
-    async function guardarVehiculoPersona() {
-      const modelo = document.getElementById('vehiculo-modelo-input').value.trim();
-      const patente = document.getElementById('vehiculo-patente-input').value.trim().toUpperCase();
-
-      if (!personaSeleccionada.id) {
-        const resAlta = await fetch('/api/personas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dni: personaSeleccionada.dni || 'S/D',
-            nombre_completo: personaSeleccionada.nombre_completo || 'Personal',
-            jerarquia_rol: personaSeleccionada.jerarquia_rol || 'Personal',
-            cargo_chapa: personaSeleccionada.cargo_chapa || 'S/D',
-            credencial_url: personaSeleccionada.credencial_url,
-            vehiculo_modelo: modelo,
-            vehiculo_patente: patente
-          })
-        });
-        const dataAlta = await resAlta.json();
-        if (dataAlta.success) personaSeleccionada.id = dataAlta.id;
-      } else {
-        await fetch(`/api/personas/${personaSeleccionada.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vehiculo_modelo: modelo, vehiculo_patente: patente })
-        });
-      }
-
-      personaSeleccionada.patente_detectada = patente;
-      personaSeleccionada.modelo_detectado = modelo;
-      seleccionarPersona(personaSeleccionada);
-      cerrarModalVehiculo();
-      alert('Vehículo guardado correctamente.');
-    }
-
-    async function abrirModalListaVehiculos() {
-      try {
-        const res = await fetch(`/api/vehiculos?_=${Date.now()}`);
-        const lista = await res.json();
-        const tbody = document.getElementById('tabla-vehiculos-body');
-        tbody.innerHTML = '';
-
-        if (!lista || lista.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No se encontraron vehículos registrados.</td></tr>';
-        } else {
-          lista.forEach(v => {
-            tbody.innerHTML += `
-              <tr class="hover:bg-slate-50">
-                <td class="p-2 font-bold text-slate-800">${v.titular}</td>
-                <td class="p-2 text-slate-500">${v.jerarquia}</td>
-                <td class="p-2 text-slate-700">${v.modelo}</td>
-                <td class="p-2 font-mono font-bold text-blue-600">${v.patente}</td>
-              </tr>
-            `;
-          });
-        }
-        document.getElementById('modal-lista-vehiculos').classList.remove('hidden');
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    
-    function cerrarModalListaVehiculos() { document.getElementById('modal-lista-vehiculos').classList.add('hidden'); }
-
-    function abrirModalOficial() {
-      document.getElementById('input-oficial-nombre').value = document.getElementById('txt-oficial-servicio').innerText;
-      document.getElementById('input-oficial-tel').value = telefonoOficialGlobal;
-      document.getElementById('modal-oficial').classList.remove('hidden');
-    }
-    
-    function cerrarModalOficial() { document.getElementById('modal-oficial').classList.add('hidden'); }
-    
-    async function guardarOficialServicio() {
-      const val = document.getElementById('input-oficial-nombre').value.trim();
-      const tel = document.getElementById('input-oficial-tel').value.trim();
-      if (!val) return;
-      await fetch('/api/configuracion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clave: 'oficial_servicio', valor: val })
-      });
-      if (tel) {
-        await fetch('/api/configuracion', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clave: 'telefono_oficial', valor: tel })
-        });
-        telefonoOficialGlobal = tel;
-      }
-      document.getElementById('txt-oficial-servicio').innerText = val;
-      let cleanTel = telefonoOficialGlobal.replace(/\D/g, '');
-      if (!cleanTel.startsWith('54')) cleanTel = '549' + cleanTel;
-      document.getElementById('btn-wa-oficial').href = `https://api.whatsapp.com/send?phone=${cleanTel}&text=Hola%20Oficial,%20nos%20comunicamos%20desde%20la%20Guardia.`;
-      document.getElementById('btn-call-oficial').href = `tel:${telefonoOficialGlobal}`;
-      cerrarModalOficial();
-    }
-
-    function abrirModalNuevo() { document.getElementById('modal-nuevo').classList.remove('hidden'); }
-    function cerrarModalNuevo() { document.getElementById('modal-nuevo').classList.add('hidden'); }
-    
-    async function guardarNuevoIntegrante() {
-      const dni = document.getElementById('nuevo-dni').value.trim();
-      const nombre_completo = document.getElementById('nuevo-nombre').value.trim();
-      const jerarquia_rol = document.getElementById('nuevo-jerarquia').value;
-      const cargo_chapa = document.getElementById('nuevo-chapa').value.trim();
-      const credencial_url = document.getElementById('nuevo-credencial').value.trim();
-
-      if (!nombre_completo) {
-        alert('Ingrese el nombre completo.');
-        return;
-      }
-      const respuesta = await fetch('/api/personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url })
-      });
-      const resultado = await respuesta.json();
-      if (resultado.success) {
-        cerrarModalNuevo();
-        alert('Integrante dado de alta con éxito.');
-        abrirModalFuerzaEfectiva();
-      }
-    }
-  </script>
-</body>
-</html>
+    });
+
+    res.json({
+      plantaPresente: plantaAdentro,
+      cad1Presente: cad1Adentro,
+      cad1Total: totalC1,
+      cad2Presente: cad2Adentro,
+      cad2Total: totalC2,
+      cad3Presente: cad3Adentro,
+      cad3Total: totalC3,
+      vehiculosPredio: vehiculosAdentro
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/configuracion/:clave', async (req, res) => {
+  try {
+    const resultado = await pool.query(`SELECT valor FROM configuracion_guardia WHERE clave = $1`, [req.params.clave]);
+    res.json({ valor: resultado.rows.length > 0 ? resultado.rows[0].valor : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/configuracion', async (req, res) => {
+  const { clave, valor } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO configuracion_guardia (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor`,
+      [clave, valor]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/novedades-cadetes', async (req, res) => {
+  const fecha = req.query.fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  try {
+    const resultado = await pool.query(`SELECT * FROM novedades_cadetes WHERE fecha = $1`, [fecha]);
+    res.json(resultado.rows || []);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/novedades-cadetes', async (req, res) => {
+  const { persona_id, fecha, estado, observacion, registrado_por } = req.body;
+  const fechaHoy = fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  try {
+    await pool.query(`DELETE FROM novedades_cadetes WHERE persona_id = $1 AND fecha = $2`, [persona_id, fechaHoy]);
+    await pool.query(
+      `INSERT INTO novedades_cadetes (persona_id, fecha, estado, observacion, registrado_por) VALUES ($1, $2, $3, $4, $5)`,
+      [persona_id, fechaHoy, estado, observacion || '', registrado_por || 'Oficial de Guardia']
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor activo en puerto ${PORT}`);
+});

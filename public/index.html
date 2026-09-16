@@ -14,12 +14,58 @@
 </head>
 <body class="bg-slate-100 text-slate-800 text-sm pb-16">
 
+  <!-- PANTALLA DE LOGIN INSTITUCIONAL (Nivel Superior) -->
+  <div id="modal-login" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 shadow-2xl border border-slate-200 text-center relative overflow-hidden">
+      <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500"></div>
+      
+      <div class="space-y-2">
+        <div class="w-16 h-16 mx-auto bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg text-2xl font-bold border border-slate-700">
+          <i class="fa-solid fa-shield-halved text-amber-500"></i>
+        </div>
+        <h2 class="font-bold text-xl text-slate-900 tracking-wide">I.E.S.P. "Gral. San Martín"</h2>
+        <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Sistema Integral de Control de Guardia</p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Seleccione su Rol / Perfil</label>
+          <select id="login-rol-select" onchange="cambiarPerfilLogin()" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-semibold outline-none focus:ring-2 focus:ring-blue-600">
+            <option value="oficial">Oficial de Servicio (Fin de semana / Control Total)</option>
+            <option value="suboficial">Suboficial de Turno (Mañana / Visitas y Trámites)</option>
+            <option value="jefatura">Jefatura / Rectorado (Auditoría de Lectura)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Usuario del Sistema</label>
+          <input type="text" id="login-usuario" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" readonly />
+        </div>
+
+        <div>
+          <label class="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">PIN de Acceso Institucional</label>
+          <input type="password" id="login-pin" class="w-full border border-slate-300 rounded-xl p-3 text-xs bg-slate-50 font-mono font-bold outline-none focus:ring-2 focus:ring-blue-600" placeholder="Ingrese PIN (Ej: 1234)" autocomplete="current-password" />
+        </div>
+
+        <p id="login-error" class="text-xs text-rose-600 font-semibold text-center hidden">Usuario o PIN incorrectos.</p>
+      </div>
+
+      <button onclick="ejecutarLogin()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-xs shadow-xl transition-all transform hover:scale-[1.02]">
+        ACCEDER AL SISTEMA <i class="fa-solid fa-arrow-right ml-2"></i>
+      </button>
+
+      <div class="text-[10px] text-slate-400">
+        Plataforma Segura Autorizada - Dpto. Informática I.E.S.P.
+      </div>
+    </div>
+  </div>
+
   <!-- Header Superior -->
   <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between border-b border-slate-700 shadow-md">
     <div class="flex items-center space-x-3">
       <div>
         <h1 class="font-bold text-base leading-tight tracking-wide">I.E.S.P. "Gral. San Martín"</h1>
-        <p class="text-xs text-slate-400">Control de Guardia</p>
+        <p class="text-xs text-slate-400">Control de Guardia | Sesión: <span id="badge-sesion-rol" class="font-bold text-amber-400">Oficial</span></p>
       </div>
     </div>
 
@@ -34,7 +80,10 @@
     </div>
 
     <div class="flex items-center space-x-2">
-      <button onclick="abrirModalOficial()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+      <button id="btn-menu-visitas" onclick="abrirModalVisitasExternas()" class="hidden bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold items-center shadow transition-colors">
+        <i class="fa-solid fa-id-badge mr-1.5"></i> Visitas / Civiles
+      </button>
+      <button onclick="abrirModalOficial()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial
       </button>
       <button onclick="abrirModalCadetes()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
@@ -45,6 +94,9 @@
       </button>
       <button onclick="abrirModalListaVehiculos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-car mr-1.5"></i> Vehículos
+      </button>
+      <button onclick="cerrarSesion()" class="bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1 rounded text-xs font-semibold shadow transition-colors" title="Cerrar Sesión">
+        <i class="fa-solid fa-power-off"></i>
       </button>
     </div>
   </header>
@@ -314,6 +366,76 @@
     </div>
   </main>
 
+  <!-- MODAL DE GESTIÓN DE VISITAS EXTERNAS / CIVILES / COMISIONES (Exclusivo Suboficiales) -->
+  <div id="modal-visitas-externas" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-2xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-id-badge text-amber-600 mr-2"></i> Registro de Visitas, Civiles y Comisiones Externas
+        </h3>
+        <button onclick="cerrarModalVisitasExternas()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+
+      <!-- Formulario de Ingreso Rápido con Autocompletado por DNI -->
+      <div class="bg-slate-50 border border-slate-200 p-3 rounded space-y-3">
+        <h4 class="font-bold text-xs text-slate-700 uppercase"><i class="fa-solid fa-user-plus mr-1"></i> Nueva Visita / Entrega de Expediente</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-500 block">DNI (Búsqueda / Autocompletar)</label>
+            <input type="text" id="visita-dni" onblur="buscarVisitaPreviaPorDni()" placeholder="Ej: 30123456" class="w-full border rounded p-1.5 text-xs bg-white font-mono" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="text-[10px] uppercase font-bold text-slate-500 block">Apellido y Nombre Completo</label>
+            <input type="text" id="visita-nombre" placeholder="Ej: GOMEZ, CARLOS ALBERTO" class="w-full border rounded p-1.5 text-xs bg-white uppercase font-semibold" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-500 block">Procedencia / Institución</label>
+            <input type="text" id="visita-procedencia" placeholder="Ej: Policía de Tucumán / Particular" class="w-full border rounded p-1.5 text-xs bg-white" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-500 block">Motivo / Trámite / Expediente</label>
+            <input type="text" id="visita-motivo" placeholder="Ej: Entrega de Oficio / Trámite personal" class="w-full border rounded p-1.5 text-xs bg-white" />
+          </div>
+          <div>
+            <label class="text-[10px] uppercase font-bold text-slate-500 block">Área / Destino a Visitar</label>
+            <input type="text" id="visita-destino" placeholder="Ej: Secretaría / Jefatura de Cuerpo" class="w-full border rounded p-1.5 text-xs bg-white" />
+          </div>
+        </div>
+        <div class="flex justify-end pt-1">
+          <button onclick="guardarVisitaExterna()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded text-xs font-bold shadow transition-colors">
+            <i class="fa-solid fa-check mr-1"></i> Registrar Ingreso de Tercero
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla de Listado de Visitas del Día -->
+      <div>
+        <h4 class="font-bold text-xs text-slate-700 uppercase mb-2"><i class="fa-solid fa-list mr-1"></i> Listado de Visitantes y Comisiones Registradas Hoy</h4>
+        <div class="max-h-56 overflow-y-auto custom-scroll border rounded">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-slate-900 text-white uppercase text-[10px]">
+              <tr>
+                <th class="p-2">Hora</th>
+                <th class="p-2">DNI</th>
+                <th class="p-2">Apellido y Nombre</th>
+                <th class="p-2">Procedencia</th>
+                <th class="p-2">Motivo / Trámite</th>
+                <th class="p-2">Destino</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-visitas-body" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="cerrarModalVisitasExternas()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL CÁMARA QR -->
   <div id="modal-scanner" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-4 max-w-md w-full space-y-3 shadow-2xl relative">
@@ -380,7 +502,7 @@
       </div>
       <div class="flex gap-2">
         <input type="text" id="filtro-directorio" oninput="filtrarDirectorio()" placeholder="Filtrar por nombre, jerarquía o N° de legajo..." class="flex-1 border rounded p-2 text-xs outline-none" />
-        <button onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
+        <button id="btn-agregar-nuevo-efectivo" onclick="cerrarModalFuerzaEfectiva(); abrirModalNuevo();" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center shadow transition-colors whitespace-nowrap">
           <i class="fa-solid fa-user-plus mr-1.5"></i> Agregar Nuevo
         </button>
       </div>
@@ -403,7 +525,7 @@
     </div>
   </div>
 
-  <!-- Modal Control de Asistencia - Compañía de Cadetes (Con Horario Tope y Envío a Jefaturas) -->
+  <!-- Modal Control de Asistencia - Compañía de Cadetes -->
   <div id="modal-cadetes" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-6xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b pb-2">
@@ -413,12 +535,11 @@
         <button onclick="cerrarModalCadetes()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
       </div>
 
-      <!-- Barra de Configuración de Hora Tope y Aviso a Jefaturas -->
       <div class="bg-slate-50 border border-slate-200 p-3 rounded flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center space-x-2">
           <label class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-stopwatch text-amber-600 mr-1"></i> Hora Tope de Ingreso:</label>
           <input type="time" id="input-hora-tope" class="border rounded px-2 py-1 text-xs font-mono font-bold bg-white" value="07:00" />
-          <button onclick="guardarHoraTope()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded text-xs font-semibold">Fijar Hora</button>
+          <button id="btn-fijar-hora-tope" onclick="guardarHoraTope()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded text-xs font-semibold">Fijar Hora</button>
         </div>
 
         <div class="flex items-center space-x-2">
@@ -434,7 +555,6 @@
         </div>
       </div>
 
-      <!-- Contadores Resumen -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-center">
           <span class="text-[10px] uppercase font-bold text-emerald-800 block">Cadetes 1° Año</span>
@@ -456,7 +576,6 @@
         </div>
       </div>
 
-      <!-- Tabla de Cadetes con Acciones de Novedad y Contacto -->
       <div class="max-h-[50vh] overflow-y-auto custom-scroll border rounded">
         <table class="w-full text-left text-xs border-collapse">
           <thead class="bg-slate-900 text-white uppercase text-[10px]">
@@ -525,7 +644,7 @@
     </div>
   </div>
 
-  <!-- Modal Editar Datos Personales (Incluye Celular y Familiares) -->
+  <!-- Modal Editar Datos Personales -->
   <div id="modal-editar-persona" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-lg p-5 max-w-lg w-full space-y-3 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
       <h3 class="font-bold text-slate-800 text-sm flex items-center border-b pb-2">
@@ -694,11 +813,12 @@
     let qrEscaneadoTemporal = null;
     let cadeteSeleccionadoParaNovedad = null;
     let horaTopeGlobal = "07:00";
+    let usuarioActual = null;
     const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('filtro-fecha').value = new Date().toISOString().split('T')[0];
-      cargarTodo();
+      cambiarPerfilLogin(); // Prellenar usuario por defecto
 
       const input = document.getElementById('input-buscar');
       input.addEventListener('input', async (e) => {
@@ -722,6 +842,184 @@
         }
       });
     });
+
+    // SISTEMA DE LOGUEO Y ROLES
+    function cambiarPerfilLogin() {
+      const rol = document.getElementById('login-rol-select').value;
+      const inputUser = document.getElementById('login-usuario');
+      const inputPin = document.getElementById('login-pin');
+      
+      if (rol === 'oficial') {
+        inputUser.value = 'oficial';
+        inputPin.value = '1234';
+      } else if (rol === 'suboficial') {
+        inputUser.value = 'suboficial';
+        inputPin.value = '5678';
+      } else if (rol === 'jefatura') {
+        inputUser.value = 'jefatura';
+        inputPin.value = '9999';
+      }
+    }
+
+    async function ejecutarLogin() {
+      const usuario = document.getElementById('login-usuario').value.trim();
+      const pin = document.getElementById('login-pin').value.trim();
+      const errBox = document.getElementById('login-error');
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, pin })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          usuarioActual = data.usuario;
+          document.getElementById('modal-login').classList.add('hidden');
+          aplicarRestriccionesRol();
+          cargarTodo();
+        } else {
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error(err);
+        errBox.innerText = "Error de conexión con el servidor.";
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    function aplicarRestriccionesRol() {
+      if (!usuarioActual) return;
+      const badgeRol = document.getElementById('badge-sesion-rol');
+      const btnMenuVisitas = document.getElementById('btn-menu-visitas');
+      const btnAgregarNuevo = document.getElementById('btn-agregar-nuevo-efectivo');
+      const btnFijarHora = document.getElementById('btn-fijar-hora-tope');
+
+      if (usuarioActual.rol === 'OFICIAL') {
+        badgeRol.innerText = "Oficial de Servicio (Control Total)";
+        badgeRol.className = "font-bold text-amber-400";
+        if (btnMenuVisitas) btnMenuVisitas.classList.add('hidden');
+      } else if (usuarioActual.rol === 'SUBOFICIAL') {
+        badgeRol.innerText = "Suboficial de Turno (Visitas y Mañana)";
+        badgeRol.className = "font-bold text-emerald-400";
+        if (btnMenuVisitas) btnMenuVisitas.classList.remove('hidden');
+        if (btnMenuVisitas) btnMenuVisitas.classList.add('inline-flex');
+      } else if (usuarioActual.rol === 'DIRECTIVO') {
+        badgeRol.innerText = "Jefatura / Rectorado (Modo Lectura)";
+        badgeRol.className = "font-bold text-purple-400";
+        if (btnMenuVisitas) btnMenuVisitas.classList.add('hidden');
+        if (btnAgregarNuevo) btnAgregarNuevo.classList.add('hidden');
+        if (btnFijarHora) btnFijarHora.classList.add('hidden');
+      }
+    }
+
+    function cerrarSesion() {
+      usuarioActual = null;
+      document.getElementById('login-pin').value = '';
+      document.getElementById('modal-login').classList.remove('hidden');
+    }
+
+    // MÓDULO DE VISITAS EXTERNAS Y TERCEROS
+    function abrirModalVisitasExternas() {
+      cargarListaVisitasExternas();
+      document.getElementById('modal-visitas-externas').classList.remove('hidden');
+    }
+
+    function cerrarModalVisitasExternas() {
+      document.getElementById('modal-visitas-externas').classList.add('hidden');
+    }
+
+    async function buscarVisitaPreviaPorDni() {
+      const dni = document.getElementById('visita-dni').value.trim();
+      if (!dni || dni.length < 6) return;
+
+      try {
+        const res = await fetch(`/api/buscar-visita-previa?dni=${encodeURIComponent(dni)}&_=${Date.now()}`);
+        const visitaPrevia = await res.json();
+
+        if (visitaPrevia) {
+          document.getElementById('visita-nombre').value = visitaPrevia.nombre_completo || '';
+          document.getElementById('visita-procedencia').value = visitaPrevia.procedencia || '';
+          document.getElementById('visita-destino').value = visitaPrevia.destino_area || '';
+          // Dejamos motivo libre para actualizar si viene por otro trámite
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function guardarVisitaExterna() {
+      const dni = document.getElementById('visita-dni').value.trim();
+      const nombre_completo = document.getElementById('visita-nombre').value.trim().toUpperCase();
+      const procedencia = document.getElementById('visita-procedencia').value.trim();
+      const motivo = document.getElementById('visita-motivo').value.trim();
+      const destino_area = document.getElementById('visita-destino').value.trim();
+
+      if (!nombre_completo || !motivo) {
+        alert('El Apellido y Nombre y el Motivo de la visita son obligatorios.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/visitas-externas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dni,
+            nombre_completo,
+            procedencia,
+            motivo,
+            destino_area,
+            registrado_por: usuarioActual ? usuarioActual.nombre_completo : 'Suboficial'
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('visita-dni').value = '';
+          document.getElementById('visita-nombre').value = '';
+          document.getElementById('visita-procedencia').value = '';
+          document.getElementById('visita-motivo').value = '';
+          document.getElementById('visita-destino').value = '';
+          
+          alert('¡Visita / Comisión registrada correctamente!');
+          cargarListaVisitasExternas();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function cargarListaVisitasExternas() {
+      const fecha = document.getElementById('filtro-fecha').value;
+      try {
+        const res = await fetch(`/api/visitas-externas?fecha=${fecha}&_=${Date.now()}`);
+        const lista = await res.json();
+        const tbody = document.getElementById('tabla-visitas-body');
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(lista) || lista.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">Sin visitas ni comisiones externas registradas hoy.</td></tr>';
+          return;
+        }
+
+        lista.forEach(v => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50">
+              <td class="p-2 font-mono font-bold text-slate-700">${v.fecha_hora.split(' ')[1] || v.fecha_hora}</td>
+              <td class="p-2 font-mono text-blue-600">${v.dni}</td>
+              <td class="p-2 font-bold text-slate-800">${v.nombre_completo}</td>
+              <td class="p-2 text-slate-600">${v.procedencia}</td>
+              <td class="p-2 text-slate-700">${v.motivo}</td>
+              <td class="p-2 font-semibold text-amber-700">${v.destino_area}</td>
+            </tr>
+          `;
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
 
     function cargarTodo() {
       cargarLibro();
@@ -1350,16 +1648,21 @@
         const nom = p.nombre_completo || p.nombre || 'S/D';
         const jer = p.jerarquia_rol || p.jerarquia || '';
         const chp = p.cargo_chapa || p.chapa || 'S/D';
+        
+        let botonesAccion = `
+          <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Seleccionar">Sel.</button>
+          <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Editar"><i class="fa-solid fa-pen"></i></button>
+        `;
+        if (usuarioActual && usuarioActual.rol !== 'DIRECTIVO') {
+          botonesAccion += `<button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Eliminar"><i class="fa-solid fa-trash"></i></button>`;
+        }
+
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50">
             <td class="p-2 font-bold text-slate-800">${nom}</td>
             <td class="p-2 text-slate-500">${jer}</td>
             <td class="p-2 font-mono text-blue-600">${chp}</td>
-            <td class="p-2 text-center space-x-1 whitespace-nowrap">
-              <button onclick='seleccionarEfectivoDirectorio(${JSON.stringify(p)})' class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Seleccionar">Sel.</button>
-              <button onclick='editarDesdeDirectorio(${JSON.stringify(p)})' class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Editar"><i class="fa-solid fa-pen"></i></button>
-              <button onclick='eliminarEfectivo(${p.id})' class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded text-[10px] font-semibold shadow" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-            </td>
+            <td class="p-2 text-center space-x-1 whitespace-nowrap">${botonesAccion}</td>
           </tr>
         `;
       });
@@ -1412,7 +1715,6 @@
 
     function cerrarModalFuerzaEfectiva() { document.getElementById('modal-fuerza-efectiva').classList.add('hidden'); }
 
-    // GESTIÓN AVANZADA DE ASISTENCIA Y NOVEDADES DE CADETES
     async function abrirModalCadetes() {
       try {
         const resPersonal = await fetch(`/api/personal-completo?_=${Date.now()}`);
@@ -1489,14 +1791,12 @@
             estadoTxt = 'FUERA DEL PREDIO';
             badgeClase = 'bg-slate-200 text-slate-700';
           } else if (ultimoMov.accion && ultimoMov.accion.includes('INGRESO')) {
-            // Comparar con hora tope
             if (ultimoMov.hora > horaTopeGlobal) {
               estadoTxt = `TARDE (${ultimoMov.hora})`;
               badgeClase = 'bg-orange-100 text-orange-800 font-bold';
             }
           }
         } else {
-          // Si no tiene movimientos y pasó la hora tope
           const horaActualStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
           if (horaActualStr > horaTopeGlobal) {
             estadoTxt = 'AUSENTE';
@@ -1519,7 +1819,6 @@
           if (esAusente) c3Ausentes++;
         }
 
-        // Botones de llamada / whatsapp rápido
         let waLinkCadete = cel ? `https://api.whatsapp.com/send?phone=${cel.replace(/\D/g, '')}&text=Hola%20${encodeURIComponent(nom)},%20te%20escribimos%20desde%20la%20Guardia%20del%20IESP.` : '#';
         let callLinkCadete = cel ? `tel:${cel}` : '#';
         let callLinkFam = fam1Tel ? `tel:${fam1Tel}` : '#';
@@ -1572,7 +1871,7 @@
             fecha,
             estado,
             observacion,
-            registrado_por: document.getElementById('txt-oficial-servicio').innerText
+            registrado_por: usuarioActual ? usuarioActual.nombre_completo : 'Oficial'
           })
         });
 
@@ -1602,7 +1901,7 @@
         let mensaje = `*PARTE DE ASISTENCIA Y NOVEDADES DE CADETES*\n`;
         mensaje += `*Instituto:* I.E.S.P. Gral. San Martín\n`;
         mensaje += `*Fecha:* ${fecha} | *Hora Tope:* ${horaTopeGlobal} hs\n`;
-        mensaje += `*Oficial de Servicio:* ${oficial}\n`;
+        mensaje += `*Registrado por:* ${usuarioActual ? usuarioActual.nombre_completo : oficial}\n`;
         mensaje += `*Destinatario:* ${destino}\n\n`;
 
         let conNovedades = 0;

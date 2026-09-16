@@ -84,14 +84,9 @@ async function inicializarBaseDatos() {
     `);
     console.log('Tablas y columnas verificadas exitosamente en PostgreSQL.');
 
-    // Verificar si la tabla de personas está completamente vacía para importar por primera vez
-    const resConteo = await pool.query(`SELECT COUNT(*) FROM personas`);
-    const totalPersonas = parseInt(resConteo.rows[0].count);
-
-    if (totalPersonas === 0) {
-      console.log('Base de datos vacía detectada. Iniciando importación automática de planillas...');
-
-      // 1. Importar Cadetes
+    // 1. Importar Cadetes solo si la tabla no tiene cadetes registrados
+    const resConteoCadetes = await pool.query(`SELECT COUNT(*) FROM personas WHERE jerarquia_rol ILIKE '%cadete%'`);
+    if (parseInt(resConteoCadetes.rows[0].count) === 0) {
       const archivoCadetes = 'LISTADO DE COMPAÑIA DE CADETES AÑO 2026 PARA D1.xlsx';
       if (fs.existsSync(archivoCadetes)) {
         const workbook = XLSX.readFile(archivoCadetes);
@@ -116,8 +111,11 @@ async function inicializarBaseDatos() {
         }
         console.log(`> Importados ${rows.length} cadetes exitosamente.`);
       }
+    }
 
-      // 2. Importar LEO IESP (Oficiales y Suboficiales)
+    // 2. Importar LEO IESP (Oficiales y Suboficiales) de forma independiente si aún no fueron cargados
+    const resConteoLeo = await pool.query(`SELECT COUNT(*) FROM personas WHERE jerarquia_rol NOT ILIKE '%cadete%'`);
+    if (parseInt(resConteoLeo.rows[0].count) === 0) {
       const archivoLeo = 'LEO IESP.xlsx';
       if (fs.existsSync(archivoLeo)) {
         const fileBuffer = fs.readFileSync(archivoLeo);
@@ -147,6 +145,7 @@ async function inicializarBaseDatos() {
         }
       }
     }
+
   } catch (err) {
     console.error('Error al inicializar o importar en la base de datos:', err);
   }

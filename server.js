@@ -241,7 +241,62 @@ app.get('/api/buscar', async (req, res) => {
   }
 });
 
-// Endpoint para registrar movimientos en el Libro de Guardia
+// Endpoint PUT crítico para asociar QR, actualizar vehículos y datos personales
+app.put('/api/personas/:id', async (req, res) => {
+  const { 
+    vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, 
+    dni, cargo_chapa, nombre_completo, jerarquia_rol, limpiar_credencial,
+    celular, familiar_nombre_1, familiar_telefono_1, familiar_nombre_2, familiar_telefono_2 
+  } = req.body;
+  const idPersona = req.params.id;
+
+  try {
+    if (limpiar_credencial) {
+      await pool.query(`UPDATE personas SET credencial_url = NULL, credencial_token = NULL WHERE id = $1`, [idPersona]);
+      return res.json({ success: true });
+    }
+
+    const actualQuery = await pool.query(`SELECT * FROM personas WHERE id = $1`, [idPersona]);
+    if (actualQuery.rows.length === 0) return res.status(404).json({ error: 'Persona no encontrada' });
+    const actual = actualQuery.rows[0];
+
+    const nuevoDni = (dni !== undefined && dni !== '') ? dni : actual.dni;
+    const nuevoNombre = (nombre_completo !== undefined && nombre_completo !== '') ? nombre_completo.toUpperCase() : actual.nombre_completo;
+    const nuevaJerarquia = (jerarquia_rol !== undefined && jerarquia_rol !== '') ? jerarquia_rol : actual.jerarquia_rol;
+    const nuevoChapa = (cargo_chapa !== undefined && cargo_chapa !== '') ? cargo_chapa : actual.cargo_chapa;
+    const nuevoCelular = celular !== undefined ? celular : actual.celular;
+    const famNom1 = familiar_nombre_1 !== undefined ? familiar_nombre_1 : actual.familiar_nombre_1;
+    const famTel1 = familiar_telefono_1 !== undefined ? familiar_telefono_1 : actual.familiar_telefono_1;
+    const famNom2 = familiar_nombre_2 !== undefined ? familiar_nombre_2 : actual.familiar_nombre_2;
+    const famTel2 = familiar_telefono_2 !== undefined ? familiar_telefono_2 : actual.familiar_telefono_2;
+    
+    let nuevaCredUrl = actual.credencial_url;
+    let nuevoToken = actual.credencial_token;
+    
+    if (credencial_url !== undefined && credencial_url !== '') {
+      nuevaCredUrl = credencial_url;
+      nuevoToken = credencial_url.trim().split('/').pop().replace('#', '');
+    } else if (credencial_token !== undefined && credencial_token !== '') {
+      nuevoToken = credencial_token;
+    }
+
+    const nuevoModelo = vehiculo_modelo !== undefined ? vehiculo_modelo : actual.vehiculo_modelo;
+    const nuevaPatente = vehiculo_patente !== undefined ? vehiculo_patente : actual.vehiculo_patente;
+
+    const sql = `
+      UPDATE personas 
+      SET dni = $1, nombre_completo = $2, jerarquia_rol = $3, cargo_chapa = $4, credencial_url = $5, credencial_token = $6, vehiculo_modelo = $7, vehiculo_patente = $8, celular = $9, familiar_nombre_1 = $10, familiar_telefono_1 = $11, familiar_nombre_2 = $12, familiar_telefono_2 = $13
+      WHERE id = $14
+    `;
+
+    await pool.query(sql, [nuevoDni, nuevoNombre, nuevaJerarquia, nuevoChapa, nuevaCredUrl, nuevoToken, nuevoModelo, nuevaPatente, nuevoCelular, famNom1, famTel1, famNom2, famTel2, idPersona]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error al actualizar persona:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/libro-guardia', async (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   
@@ -273,7 +328,6 @@ app.post('/api/libro-guardia', async (req, res) => {
   }
 });
 
-// Endpoint corregido para traer el libro de guardia sin restricciones estrictas de fecha
 app.get('/api/libro-guardia', async (req, res) => {
   const sql = `SELECT * FROM libro_guardia ORDER BY id DESC LIMIT 50`;
   try {
@@ -297,7 +351,6 @@ app.post('/api/libro-guardia/marcar-enviados', async (req, res) => {
 });
 
 app.get('/api/fuerza-presente', async (req, res) => {
-  const hoy = `${new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}%`;
   try {
     const resultado = await pool.query(`SELECT protagonista, accion, detalle FROM libro_guardia ORDER BY id ASC`);
     const movimientos = resultado.rows;

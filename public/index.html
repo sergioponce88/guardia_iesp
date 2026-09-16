@@ -1035,13 +1035,11 @@
         const movsOrdenados = [...movimientos].reverse();
 
         movsOrdenados.forEach(m => {
-          if (!m.rubro || m.rubro === 'PERSONAL') {
-            if (m.accion.includes('INGRESO') || m.accion.includes('VEHÍCULO')) {
-              estadosPersonas[m.protagonista] = { activo: true, hora: m.hora, puesto: m.puesto, detalle: m.detalle };
-            } else if (m.accion.includes('EGRESO')) {
-              if (estadosPersonas[m.protagonista]) {
-                estadosPersonas[m.protagonista].activo = false;
-              }
+          if (m.accion && (m.accion.includes('INGRESO') || m.accion.includes('VEHÍCULO'))) {
+            estadosPersonas[m.protagonista] = { activo: true, hora: m.hora, puesto: m.puesto, detalle: m.detalle };
+          } else if (m.accion && m.accion.includes('EGRESO')) {
+            if (estadosPersonas[m.protagonista]) {
+              estadosPersonas[m.protagonista].activo = false;
             }
           }
         });

@@ -323,6 +323,7 @@ app.post('/api/personas', async (req, res) => {
   }
 });
 
+// Endpoint protegido con validación estricta de secuencia de ingresos y egresos
 app.post('/api/libro-guardia', async (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   
@@ -331,13 +332,30 @@ app.post('/api/libro-guardia', async (req, res) => {
   const fechaLocal = now.toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const fechaCompleta = `${fechaLocal} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-  const sql = `
-    INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVO', 0, 0)
-    RETURNING id
-  `;
-
   try {
+    const ultMovQuery = await pool.query(
+      `SELECT accion FROM libro_guardia WHERE protagonista = $1 AND fecha_completa LIKE $2 ORDER BY id DESC LIMIT 1`,
+      [protagonista, `${fechaLocal}%`]
+    );
+
+    const ultimoEstado = ultMovQuery.rows.length > 0 ? ultMovQuery.rows[0].accion : null;
+    const esIngreso = accion.includes('INGRESO') || accion.includes('VEHÍCULO (INGRESO)');
+    const esEgreso = accion.includes('EGRESO');
+
+    if (esIngreso && ultimoEstado && (ultimoEstado.includes('INGRESO') || ultimoEstado.includes('VEHÍCULO (INGRESO)'))) {
+      return res.status(400).json({ success: false, error: `⚠️ ACCIÓN DENEGADA: ${protagonista} ya figura ADENTRO del instituto. No puede volver a ingresar sin antes egresar.` });
+    }
+
+    if (esEgreso && (!ultimoEstado || (!ultimoEstado.includes('INGRESO') && !ultimoEstado.includes('VEHÍCULO (INGRESO)')))) {
+      return res.status(400).json({ success: false, error: `⚠️ ACCIÓN DENEGADA: ${protagonista} figura AFUERA o nunca registró ingreso hoy. No puede egresar.` });
+    }
+
+    const sql = `
+      INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVO', 0, 0)
+      RETURNING id
+    `;
+
     const resultado = await pool.query(sql, [
       hora, 
       fechaCompleta, 

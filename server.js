@@ -241,7 +241,6 @@ app.get('/api/buscar', async (req, res) => {
   }
 });
 
-// Endpoint DELETE para eliminar usuarios mal cargados
 app.delete('/api/personas/:id', async (req, res) => {
   const idPersona = req.params.id;
   try {
@@ -384,9 +383,13 @@ app.get('/api/fuerza-presente', async (req, res) => {
 
     let vehiculosAdentro = 4;
     let plantaAdentro = 8;
-    let cad1Adentro = 1;
-    let cad2Adentro = 1;
-    let cad3Adentro = 1;
+    let cad1Adentro = 0;
+    let cad2Adentro = 0;
+    let cad3Adentro = 0;
+
+    let totalC1 = 61;
+    let totalC2 = 48;
+    let totalC3 = 75;
 
     const estados = {};
     (movimientos || []).forEach(m => {
@@ -397,19 +400,26 @@ app.get('/api/fuerza-presente', async (req, res) => {
       if (data.accion && data.accion.includes('INGRESO')) {
         if (data.detalle && (data.detalle.includes('Patente') || data.detalle.includes('Móvil') || data.detalle.includes('rodado'))) {
           vehiculosAdentro++;
+        } else if (persona.includes('1° AÑO') || persona.includes('Cadete 1°')) {
+          cad1Adentro++;
+        } else if (persona.includes('2° AÑO') || persona.includes('Cadete 2°')) {
+          cad2Adentro++;
+        } else if (persona.includes('3° AÑO') || persona.includes('Cadete 3°')) {
+          cad3Adentro++;
+        } else {
+          plantaAdentro++;
         }
-        if (persona.includes('Cadete 1°') || persona.includes('1° Año')) cad1Adentro++;
-        else if (persona.includes('Cadete 2°') || persona.includes('2° Año')) cad2Adentro++;
-        else if (persona.includes('Cadete 3°') || persona.includes('3° Año')) cad3Adentro++;
-        else plantaAdentro++;
       }
     });
 
     res.json({
       plantaPresente: plantaAdentro,
       cad1Presente: cad1Adentro,
+      cad1Total: totalC1,
       cad2Presente: cad2Adentro,
+      cad2Total: totalC2,
       cad3Presente: cad3Adentro,
+      cad3Total: totalC3,
       vehiculosPredio: vehiculosAdentro
     });
   } catch (err) {

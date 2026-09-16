@@ -79,9 +79,15 @@
       </button>
     </div>
 
-    <div class="flex items-center space-x-2">
+    <div class="flex items-center space-x-2 flex-wrap gap-y-1">
       <button id="btn-menu-visitas" onclick="abrirModalVisitasExternas()" class="hidden bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-semibold items-center shadow transition-colors">
-        <i class="fa-solid fa-id-badge mr-1.5"></i> Visitas / Civiles
+        <i class="fa-solid fa-id-badge mr-1.5"></i> Visitas
+      </button>
+      <button onclick="abrirModalQuienesAdentro()" class="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+        <i class="fa-solid fa-clipboard-user mr-1.5"></i> Quiénes Adentro
+      </button>
+      <button onclick="abrirModalVehiculosAdentro()" class="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
+        <i class="fa-solid fa-car-rear mr-1.5"></i> Autos Adentro
       </button>
       <button onclick="abrirModalOficial()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1 rounded text-xs font-semibold flex items-center shadow transition-colors">
         <i class="fa-solid fa-user-shield mr-1.5"></i> Oficial
@@ -397,6 +403,62 @@
 
     </div>
   </main>
+
+  <!-- MODAL: QUIÉNES ESTÁN ADENTRO EN TIEMPO REAL -->
+  <div id="modal-quienes-adentro" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-clipboard-user text-cyan-600 mr-2"></i> Personal y Cadetes Presentes en el Instituto (En Vivo)
+        </h3>
+        <button onclick="cerrarModalQuienesAdentro()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+      <div class="max-h-96 overflow-y-auto custom-scroll border rounded">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Hora Ingreso</th>
+              <th class="p-2">Puesto</th>
+              <th class="p-2">Protagonista / Efectivo</th>
+              <th class="p-2">Detalle / Modo</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-quienes-adentro" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="cerrarModalQuienesAdentro()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VEHÍCULOS ADENTRO EN TIEMPO REAL -->
+  <div id="modal-vehiculos-adentro" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg p-5 max-w-3xl w-full space-y-4 shadow-xl max-h-[90vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-slate-800 text-sm flex items-center">
+          <i class="fa-solid fa-car-rear text-teal-600 mr-2"></i> Vehículos Estacionados en el Predio (En Vivo)
+        </h3>
+        <button onclick="cerrarModalVehiculosAdentro()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+      <div class="max-h-96 overflow-y-auto custom-scroll border rounded">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-slate-900 text-white uppercase text-[10px]">
+            <tr>
+              <th class="p-2">Hora Ingreso</th>
+              <th class="p-2">Puesto</th>
+              <th class="p-2">Vehículo / Patente</th>
+              <th class="p-2">Titular</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-vehiculos-adentro" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="cerrarModalVehiculosAdentro()" class="px-4 py-1.5 bg-slate-800 text-white font-semibold rounded text-xs">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL DE GESTIÓN DE VISITAS EXTERNAS / CIVILES / COMISIONES -->
   <div id="modal-visitas-externas" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -961,6 +1023,114 @@
 
     function cerrarModalVisitasExternas() {
       document.getElementById('modal-visitas-externas').classList.add('hidden');
+    }
+
+    async function abrirModalQuienesAdentro() {
+      try {
+        const fechaHoy = document.getElementById('filtro-fecha').value;
+        const res = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
+        const movimientos = await res.json();
+
+        const estadosPersonas = {};
+        const movsOrdenados = [...movimientos].reverse();
+
+        movsOrdenados.forEach(m => {
+          if (!m.rubro || m.rubro === 'PERSONAL') {
+            if (m.accion.includes('INGRESO') || m.accion.includes('VEHÍCULO')) {
+              estadosPersonas[m.protagonista] = { activo: true, hora: m.hora, puesto: m.puesto, detalle: m.detalle };
+            } else if (m.accion.includes('EGRESO')) {
+              if (estadosPersonas[m.protagonista]) {
+                estadosPersonas[m.protagonista].activo = false;
+              }
+            }
+          }
+        });
+
+        const tbody = document.getElementById('tabla-quienes-adentro');
+        tbody.innerHTML = '';
+        let contador = 0;
+
+        Object.entries(estadosPersonas).forEach(([protagonista, data]) => {
+          if (data.activo) {
+            contador++;
+            tbody.innerHTML += `
+              <tr class="hover:bg-slate-50">
+                <td class="p-2 font-mono font-bold text-emerald-700">${data.hora}</td>
+                <td class="p-2 text-slate-600">${data.puesto}</td>
+                <td class="p-2 font-bold text-slate-800">${protagonista}</td>
+                <td class="p-2 text-slate-600">${data.detalle}</td>
+              </tr>
+            `;
+          }
+        });
+
+        if (contador === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No hay personal ni cadetes registrados con ingreso activo en este momento.</td></tr>';
+        }
+
+        document.getElementById('modal-quienes-adentro').classList.remove('hidden');
+      } catch (e) {
+        console.error(e);
+        alert('Error al consultar el personal presente.');
+      }
+    }
+
+    function cerrarModalQuienesAdentro() {
+      document.getElementById('modal-quienes-adentro').classList.add('hidden');
+    }
+
+    async function abrirModalVehiculosAdentro() {
+      try {
+        const fechaHoy = document.getElementById('filtro-fecha').value;
+        const res = await fetch(`/api/libro-guardia?fecha=${fechaHoy}&_=${Date.now()}`);
+        const movimientos = await res.json();
+
+        const estadosVehiculos = {};
+        const movsOrdenados = [...movimientos].reverse();
+
+        movsOrdenados.forEach(m => {
+          if (m.accion && (m.accion.includes('VEHÍCULO') || m.detalle.includes('Patente') || m.detalle.includes('rodado'))) {
+            if (m.accion.includes('INGRESO') || m.accion.includes('VEHÍCULO (INGRESO)')) {
+              estadosVehiculos[m.protagonista] = { activo: true, hora: m.hora, puesto: m.puesto, detalle: m.detalle };
+            } else if (m.accion.includes('EGRESO')) {
+              if (estadosVehiculos[m.protagonista]) {
+                estadosVehiculos[m.protagonista].activo = false;
+              }
+            }
+          }
+        });
+
+        const tbody = document.getElementById('tabla-vehiculos-adentro');
+        tbody.innerHTML = '';
+        let contador = 0;
+
+        Object.entries(estadosVehiculos).forEach(([protagonista, data]) => {
+          if (data.activo) {
+            contador++;
+            tbody.innerHTML += `
+              <tr class="hover:bg-slate-50">
+                <td class="p-2 font-mono font-bold text-teal-700">${data.hora}</td>
+                <td class="p-2 text-slate-600">${data.puesto}</td>
+                <td class="p-2 font-mono font-bold text-slate-800">${data.detalle}</td>
+                <td class="p-2 font-semibold text-slate-700">${protagonista}</td>
+              </tr>
+            `;
+          }
+        });
+
+        if (contador === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">No hay vehículos registrados dentro del predio en este momento.</td></tr>';
+        }
+
+        document.getElementById('modal-vehiculos-adentro').classList.remove('hidden');
+      } catch (e) {
+        console.error(e);
+        alert('Error al consultar los vehículos presentes.');
+      }
+    }
+
+    function cerrarModalVehiculosAdentro() {
+      document.getElementById('modal-vehiculos-adentro').classList.add('hidden');
     }
 
     async function buscarVisitaPreviaPorDni() {

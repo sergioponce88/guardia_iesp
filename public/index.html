@@ -1502,9 +1502,6 @@
         
         if (dataRes && dataRes.success) {
           mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
-          limpiarSeleccion();
-          cargarLibro();
-          cargarFuerza();
         } else {
           alert('El servidor no pudo registrar el movimiento: ' + (dataRes.error || 'Desconocido'));
         }
@@ -1561,6 +1558,9 @@
 
     function cerrarModalVisual() {
       document.getElementById('modal-confirmacion-visual').classList.add('hidden');
+      limpiarSeleccion();
+      cargarLibro();
+      cargarFuerza();
     }
 
     async function cargarFuerza() {
@@ -1746,7 +1746,6 @@
       let c2Total = 0, c2Ausentes = 0, c2Presentes = 0;
       let c3Total = 0, c3Ausentes = 0, c3Presentes = 0;
 
-      // Conteo dinámico y real extraído directamente de la base de datos
       cadetesGlobal.forEach(cad => {
         const jer = (cad.jerarquia_rol || '').toLowerCase();
         if (jer.includes('1°') || jer.includes('primer')) c1Total++;
@@ -1848,7 +1847,6 @@
         `;
       });
 
-      // Actualizar totales y ausentes exactos
       document.getElementById('stat-cad1').innerHTML = `${c1Presentes} / ${c1Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c1Ausentes}</span>`;
       document.getElementById('stat-cad2').innerHTML = `${c2Presentes} / ${c2Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c2Ausentes}</span>`;
       document.getElementById('stat-cad3').innerHTML = `${c3Presentes} / ${c3Total} <span class="block text-[10px] text-rose-600 font-semibold">Ausentes: ${c3Ausentes}</span>`;

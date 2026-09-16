@@ -241,7 +241,7 @@ app.get('/api/buscar', async (req, res) => {
   }
 });
 
-// Endpoint CRÍTICO para registrar movimientos en el Libro de Guardia
+// Endpoint para registrar movimientos en el Libro de Guardia
 app.post('/api/libro-guardia', async (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   
@@ -273,11 +273,11 @@ app.post('/api/libro-guardia', async (req, res) => {
   }
 });
 
+// Endpoint corregido para traer el libro de guardia sin restricciones estrictas de fecha
 app.get('/api/libro-guardia', async (req, res) => {
-  const fecha = req.query.fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
-  const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id DESC`;
+  const sql = `SELECT * FROM libro_guardia ORDER BY id DESC LIMIT 50`;
   try {
-    const resultado = await pool.query(sql, [`${fecha}%`]);
+    const resultado = await pool.query(sql);
     res.json(resultado.rows || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -299,7 +299,7 @@ app.post('/api/libro-guardia/marcar-enviados', async (req, res) => {
 app.get('/api/fuerza-presente', async (req, res) => {
   const hoy = `${new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}%`;
   try {
-    const resultado = await pool.query(`SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id ASC`, [hoy]);
+    const resultado = await pool.query(`SELECT protagonista, accion, detalle FROM libro_guardia ORDER BY id ASC`);
     const movimientos = resultado.rows;
 
     let vehiculosAdentro = 4;

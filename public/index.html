@@ -1467,7 +1467,7 @@
 
     async function registrarMovimiento(tipo, modo) {
       if (!personaSeleccionada) {
-        alert('Seleccione una persona primero.');
+        alert('Seleccione una persona primero buscando por DNI, Apellido o escaneando su QR.');
         return;
       }
       const puesto = document.getElementById('sel-puesto').value;
@@ -1499,13 +1499,17 @@
         });
         const dataRes = await res.json();
         
-        mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
-
-        limpiarSeleccion();
-        cargarLibro();
-        cargarFuerza();
+        if (dataRes.success) {
+          mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
+          limpiarSeleccion();
+          cargarLibro();
+          cargarFuerza();
+        } else {
+          alert('El servidor no pudo registrar el movimiento.');
+        }
       } catch (e) {
-        console.error(e);
+        console.error("Error al registrar movimiento:", e);
+        alert('Error de conexión al intentar registrar el movimiento.');
       }
     }
 

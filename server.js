@@ -241,7 +241,18 @@ app.get('/api/buscar', async (req, res) => {
   }
 });
 
-// Endpoint PUT crítico para asociar QR, actualizar vehículos y datos personales
+// Endpoint DELETE para eliminar usuarios mal cargados
+app.delete('/api/personas/:id', async (req, res) => {
+  const idPersona = req.params.id;
+  try {
+    await pool.query(`DELETE FROM personas WHERE id = $1`, [idPersona]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error al eliminar efectivo:", e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.put('/api/personas/:id', async (req, res) => {
   const { 
     vehiculo_modelo, vehiculo_patente, credencial_url, credencial_token, 
@@ -293,6 +304,22 @@ app.put('/api/personas/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error("Error al actualizar persona:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/personas', async (req, res) => {
+  const { dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token } = req.body;
+  if (!nombre_completo) return res.status(400).json({ error: 'Nombre obligatorio' });
+
+  const token = credencial_url ? credencial_url.trim().split('/').pop().replace('#', '') : (credencial_token || null);
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, credencial_url, credencial_token) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [dni || 'S/D', nombre_completo.toUpperCase(), jerarquia_rol || 'Personal', cargo_chapa || 'S/D', credencial_url || null, token]
+    );
+    res.json({ id: resultado.rows[0].id, success: true });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });

@@ -398,13 +398,14 @@ app.get('/api/fuerza-presente', async (req, res) => {
 
     Object.entries(estados).forEach(([persona, data]) => {
       if (data.accion && data.accion.includes('INGRESO')) {
+        const pUpper = persona.toUpperCase();
         if (data.detalle && (data.detalle.includes('Patente') || data.detalle.includes('Móvil') || data.detalle.includes('rodado'))) {
           vehiculosAdentro++;
-        } else if (persona.includes('1° AÑO') || persona.includes('Cadete 1°')) {
+        } else if (pUpper.includes('CADETE') && (pUpper.includes('1') || pUpper.includes('PRIMER'))) {
           cad1Adentro++;
-        } else if (persona.includes('2° AÑO') || persona.includes('Cadete 2°')) {
+        } else if (pUpper.includes('CADETE') && (pUpper.includes('2') || pUpper.includes('SEGUNDO'))) {
           cad2Adentro++;
-        } else if (persona.includes('3° AÑO') || persona.includes('Cadete 3°')) {
+        } else if (pUpper.includes('CADETE') && (pUpper.includes('3') || pUpper.includes('TERCER'))) {
           cad3Adentro++;
         } else {
           plantaAdentro++;

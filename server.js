@@ -53,7 +53,7 @@ async function inicializarBaseDatos() {
         id SERIAL PRIMARY KEY,
         persona_id INTEGER,
         fecha TEXT,
-        estado TEXT, -- 'COMISION', 'ENFERMEDAD', 'AVISO', 'TARDE'
+        estado TEXT, -- 'COMISION', 'ENFERMEDAD', 'AVISO', 'TARDE', 'AUSENTE'
         observacion TEXT,
         registrado_por TEXT
       )
@@ -84,7 +84,7 @@ async function inicializarBaseDatos() {
     `);
     console.log('Tablas y columnas verificadas exitosamente en PostgreSQL.');
 
-    // Verificar si la tabla de personas está vacía para importar automáticamente los Excel
+    // Verificar si la tabla de personas está completamente vacía para importar por primera vez
     const resConteo = await pool.query(`SELECT COUNT(*) FROM personas`);
     const totalPersonas = parseInt(resConteo.rows[0].count);
 
@@ -120,34 +120,31 @@ async function inicializarBaseDatos() {
       // 2. Importar LEO IESP (Oficiales y Suboficiales)
       const archivoLeo = 'LEO IESP.xlsx';
       if (fs.existsSync(archivoLeo)) {
-        const workbookLeo = XLSX.readFile(archivoLeo);
-        const sheetNameLeo = workbookLeo.SheetNames[0];
-        const rowsLeo = XLSX.utils.sheet_to_json(workbookLeo.Sheets[sheetNameLeo]);
+        const fileBuffer = fs.readFileSync(archivoLeo);
+        const textContent = fileBuffer.toString('utf8');
+        const idx = textContent.indexOf('ROLL DE COMBATE');
+        
+        if (idx !== -1) {
+          const contenidoRoll = textContent.substring(idx);
+          const regex = /"([^"]+)",([^,]+),([^,]+),([^\"]+)/g;
+          let match;
+          let countLeo = 0;
 
-        let countLeo = 0;
-        for (const row of rowsLeo) {
-          const apellido = String(row['APELLIDO'] || row['APELLIDOS'] || '').trim();
-          const nombres = String(row['NOMBRES'] || row['NOMBRE'] || '').trim();
-          let nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
+          while ((match = regex.exec(contenidoRoll)) !== null) {
+            const nombreCompleto = match[1].trim().toUpperCase();
+            const grado = match[2].trim();
+            const cargoChapa = match[3].trim();
 
-          if (nombreCompleto === ',') {
-            nombreCompleto = String(row['PERSONAL'] || row['REVISTA'] || row['APELLIDO Y NOMBRES'] || '').trim().toUpperCase();
+            if (nombreCompleto && nombreCompleto !== 'S/D') {
+              await pool.query(
+                `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ($1, $2, $3, $4)`,
+                ['S/D', nombreCompleto, grado, cargoChapa]
+              );
+              countLeo++;
+            }
           }
-
-          const grado = String(row['GRADO'] || row['JERARQUIA'] || row['ESTAS'] || 'Personal').trim();
-          const cargoChapa = String(row['CARGO'] || row['DESTINO'] || row['CHAPA'] || 'S/D').trim();
-          const dni = String(row['DNI'] || 'S/D').trim();
-          const celular = String(row['CELULAR'] || row['TEL'] || '').trim();
-
-          if (nombreCompleto && nombreCompleto !== 'S/D' && nombreCompleto !== ',') {
-            await pool.query(
-              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa, celular) VALUES ($1, $2, $3, $4, $5)`,
-              [dni, nombreCompleto, grado, cargoChapa, celular]
-            );
-            countLeo++;
-          }
+          console.log(`> Importados ${countLeo} registros de LEO IESP (Oficiales y Suboficiales) exitosamente.`);
         }
-        console.log(`> Importados ${countLeo} registros de LEO IESP exitosamente.`);
       }
     }
   } catch (err) {

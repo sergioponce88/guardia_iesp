@@ -12,6 +12,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Ruta explícita para forzar la carga de la nueva interfaz institucional
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // Configuración de conexión a PostgreSQL usando la variable de entorno de Render
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -455,7 +460,7 @@ app.delete('/api/novedades-cadetes/:id', async (req, res) => {
     await pool.query(`DELETE FROM novedades_cadetes WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+    res.status(500).json({ error: false, error: e.message });
   }
 });
 

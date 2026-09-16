@@ -1499,9 +1499,14 @@
         });
         const dataRes = await res.json();
         
-        if (dataRes.success) {
+        if (dataRes && dataRes.success) {
+          // Mostrar confirmación visual táctica
           mostrarPantallaConfirmacionVisual(personaSeleccionada, accion, dataRes.hora || '00:00', puesto);
+
+          // Limpiar de inmediato la tarjeta lateral para evitar que quede trabado el efectivo
           limpiarSeleccion();
+
+          // Recargar libro de guardia y contadores en tiempo real
           cargarLibro();
           cargarFuerza();
         } else {

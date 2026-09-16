@@ -18,7 +18,94 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Inicialización de tablas y columnas nuevas
+// Función centralizada para importar y sincronizar LEO IESP2.xlsx de forma automática y segura
+async function sincronizarLeoIesp2() {
+  const posiblesNombres = ['LEO IESP2.xlsx', 'LEO IESP2', 'LEO IESP2.XLSX'];
+  let archivoEncontrado = null;
+
+  for (const nombre of posiblesNombres) {
+    if (fs.existsSync(nombre)) {
+      archivoEncontrado = nombre;
+      break;
+    }
+  }
+
+  if (!archivoEncontrado) {
+    console.log('> Aviso: No se encontró el archivo LEO IESP2 en el servidor.');
+    return;
+  }
+
+  try {
+    const workbookLeo = XLSX.readFile(archivoEncontrado);
+    let countActualizados = 0;
+
+    // 1. Procesar Hoja ROLL DE COMBATE (Oficiales y Suboficiales)
+    let hojaRoll = workbookLeo.Sheets['ROLL DE COMBATE'] || workbookLeo.Sheets[workbookLeo.SheetNames[0]];
+    if (hojaRoll) {
+      const rowsRoll = XLSX.utils.sheet_to_json(hojaRoll);
+      for (const row of rowsRoll) {
+        const apellido = String(row['APELLIDO'] || row['APELLIDOS'] || '').trim();
+        const nombres = String(row['NOMBRES'] || row['NOMBRE'] || '').trim();
+        let nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
+
+        if (nombreCompleto === ',') {
+          nombreCompleto = String(row['APELLIDO Y NOMBRE'] || row['PERSONAL'] || '').trim().toUpperCase();
+        }
+
+        const grado = String(row['GRADO'] || row['JERARQUIA'] || 'Personal').trim();
+        const cargoChapa = String(row['CARGO'] || row['DESTINO'] || 'S/D').trim();
+
+        if (nombreCompleto && nombreCompleto !== ',') {
+          const existe = await pool.query(`SELECT id FROM personas WHERE nombre_completo ILIKE $1`, [`%${nombreCompleto}%`]);
+          if (existe.rows.length === 0) {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ('S/D', $1, $2, $3)`,
+              [nombreCompleto, grado, cargoChapa]
+            );
+          }
+        }
+      }
+    }
+
+    // 2. Procesar Hoja VEHÍCULOS y asociar al personal
+    let hojaVehiculos = workbookLeo.Sheets['VEHÍCULOS'] || workbookLeo.Sheets[workbookLeo.SheetNames[1]];
+    if (hojaVehiculos) {
+      const rowsVehiculos = XLSX.utils.sheet_to_json(hojaVehiculos);
+
+      for (const row of rowsVehiculos) {
+        const nombre = String(row['APELLIDO Y NOMBRE'] || '').trim().toUpperCase();
+        const grado = String(row['GRADO'] || '').trim();
+        const vehiculo = String(row['VEHÍCULO'] || '').trim();
+        const dominio = String(row['DOMINIO'] || '').trim();
+
+        if (nombre && (vehiculo || dominio)) {
+          const personaExiste = await pool.query(
+            `SELECT id FROM personas WHERE nombre_completo ILIKE $1`,
+            [`%${nombre}%`]
+          );
+
+          if (personaExiste.rows.length > 0) {
+            await pool.query(
+              `UPDATE personas SET vehiculo_modelo = $1, vehiculo_patente = $2 WHERE id = $3`,
+              [vehiculo, dominio, personaExiste.rows[0].id]
+            );
+          } else {
+            await pool.query(
+              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, vehiculo_modelo, vehiculo_patente) VALUES ('S/D', $1, $2, $3, $4)`,
+              [nombre, grado || 'Personal', vehiculo, dominio]
+            );
+          }
+          countActualizados++;
+        }
+      }
+    }
+    console.log(`> Sincronización automática de LEO IESP2 completada (${countActualizados} vehículos procesados).`);
+  } catch (err) {
+    console.error('Error al sincronizar LEO IESP2:', err);
+  }
+}
+
+// Inicialización de tablas y carga de planillas
 async function inicializarBaseDatos() {
   try {
     await pool.query(`
@@ -40,14 +127,14 @@ async function inicializarBaseDatos() {
       )
     `);
 
-    // Forzar y asegurar columnas nuevas si la tabla ya existía previamente
+    // Asegurar columnas nuevas
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS celular TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_1 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_1 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_nombre_2 TEXT;`);
     await pool.query(`ALTER TABLE personas ADD COLUMN IF NOT EXISTS familiar_telefono_2 TEXT;`);
 
-    // Tabla para registrar novedades y justificaciones diarias de cadetes
+    // Tabla para novedades de cadetes
     await pool.query(`
       CREATE TABLE IF NOT EXISTS novedades_cadetes (
         id SERIAL PRIMARY KEY,
@@ -113,6 +200,9 @@ async function inicializarBaseDatos() {
       }
     }
 
+    // 2. Sincronizar automáticamente Oficiales, Suboficiales y Vehículos de LEO IESP2
+    await sincronizarLeoIesp2();
+
   } catch (err) {
     console.error('Error al inicializar o importar en la base de datos:', err);
   }
@@ -120,77 +210,11 @@ async function inicializarBaseDatos() {
 
 inicializarBaseDatos();
 
-// Endpoint para importar y sincronizar LEO IESP2.xlsx (Personal, Grados y Vehículos de la hoja VEHÍCULOS) sin borrar nada
+// Endpoint manual de respaldo por si se requiere re-sincronizar al instante
 app.get('/api/importar-leo2', async (req, res) => {
   try {
-    const archivoLeo2 = 'LEO IESP2.xlsx';
-    if (!fs.existsSync(archivoLeo2)) {
-      return res.status(404).json({ error: 'Archivo LEO IESP2.xlsx no encontrado en el servidor.' });
-    }
-
-    const workbookLeo = XLSX.readFile(archivoLeo2);
-    let countActualizados = 0;
-
-    // 1. Procesar Hoja ROLL DE COMBATE (Personal de Oficiales y Suboficiales)
-    if (workbookLeo.Sheets['ROLL DE COMBATE']) {
-      const rowsRoll = XLSX.utils.sheet_to_json(workbookLeo.Sheets['ROLL DE COMBATE']);
-      for (const row of rowsRoll) {
-        const apellido = String(row['APELLIDO'] || row['APELLIDOS'] || '').trim();
-        const nombres = String(row['NOMBRES'] || row['NOMBRE'] || '').trim();
-        let nombreCompleto = `${apellido}, ${nombres}`.toUpperCase();
-
-        if (nombreCompleto === ',') {
-          nombreCompleto = String(row['APELLIDO Y NOMBRE'] || row['PERSONAL'] || '').trim().toUpperCase();
-        }
-
-        const grado = String(row['GRADO'] || row['JERARQUIA'] || 'Personal').trim();
-        const cargoChapa = String(row['CARGO'] || row['DESTINO'] || 'S/D').trim();
-
-        if (nombreCompleto && nombreCompleto !== ',') {
-          const existe = await pool.query(`SELECT id FROM personas WHERE nombre_completo ILIKE $1`, [`%${nombreCompleto}%`]);
-          if (existe.rows.length === 0) {
-            await pool.query(
-              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ('S/D', $1, $2, $3)`,
-              [nombreCompleto, grado, cargoChapa]
-            );
-          }
-        }
-      }
-    }
-
-    // 2. Procesar Hoja VEHÍCULOS y asociar al personal existente o nuevo
-    if (workbookLeo.Sheets['VEHÍCULOS']) {
-      const rowsVehiculos = XLSX.utils.sheet_to_json(workbookLeo.Sheets['VEHÍCULOS']);
-
-      for (const row of rowsVehiculos) {
-        const nombre = String(row['APELLIDO Y NOMBRE'] || '').trim().toUpperCase();
-        const grado = String(row['GRADO'] || '').trim();
-        const vehiculo = String(row['VEHÍCULO'] || '').trim();
-        const dominio = String(row['DOMINIO'] || '').trim();
-
-        if (nombre && (vehiculo || dominio)) {
-          const personaExiste = await pool.query(
-            `SELECT id FROM personas WHERE nombre_completo ILIKE $1`,
-            [`%${nombre}%`]
-          );
-
-          if (personaExiste.rows.length > 0) {
-            await pool.query(
-              `UPDATE personas SET vehiculo_modelo = $1, vehiculo_patente = $2 WHERE id = $3`,
-              [vehiculo, dominio, personaExiste.rows[0].id]
-            );
-          } else {
-            await pool.query(
-              `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, vehiculo_modelo, vehiculo_patente) VALUES ('S/D', $1, $2, $3, $4)`,
-              [nombre, grado || 'Personal', vehiculo, dominio]
-            );
-          }
-          countActualizados++;
-        }
-      }
-    }
-
-    res.json({ success: true, message: `¡Personal y vehículos de LEO IESP2 sincronizados correctamente (${countActualizados} registros de vehículos procesados)!` });
+    await sincronizarLeoIesp2();
+    res.json({ success: true, message: '¡Sincronización de LEO IESP2 ejecutada correctamente!' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -270,7 +294,6 @@ app.get('/api/vehiculos', async (req, res) => {
   }
 });
 
-// Endpoints para Novedades de Cadetes
 app.get('/api/novedades-cadetes', async (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
   try {

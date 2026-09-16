@@ -181,7 +181,7 @@ async function inicializarBaseDatos() {
       )
     `);
 
-    // --- NUEVAS TABLAS INDEPENDIENTES (Roles y Visitas Externas) ---
+    // Tablas independientes para Roles y Visitas Externas
     await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios_sistema (
         id SERIAL PRIMARY KEY,
@@ -253,7 +253,7 @@ async function inicializarBaseDatos() {
 
 inicializarBaseDatos();
 
-// --- NUEVOS ENDPOINTS PARA LOGIN Y VISITAS EXTERNAS ---
+// Endpoints para Login y Visitas Externas
 app.post('/api/login', async (req, res) => {
   const { usuario, pin } = req.body;
   try {
@@ -269,7 +269,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/visitas-externas', async (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  const fecha = req.query.fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   try {
     const resultado = await pool.query(`SELECT * FROM visitas_externas WHERE fecha_hora LIKE $1 ORDER BY id DESC`, [`${fecha}%`]);
     res.json(resultado.rows || []);
@@ -281,7 +281,9 @@ app.get('/api/visitas-externas', async (req, res) => {
 app.post('/api/visitas-externas', async (req, res) => {
   const { dni, nombre_completo, procedencia, motivo, destino_area, registrado_por } = req.body;
   const now = new Date();
-  const fechaHora = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  const horaLocal = now.toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false });
+  const fechaLocal = now.toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const fechaHora = `${fechaLocal} ${horaLocal}`;
 
   try {
     await pool.query(
@@ -304,9 +306,7 @@ app.get('/api/buscar-visita-previa', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// -----------------------------------------------------
 
-// Endpoint manual de respaldo para sincronizar LEO IESP2
 app.get('/api/importar-leo2', async (req, res) => {
   try {
     await sincronizarLeoIesp2();
@@ -391,7 +391,7 @@ app.get('/api/vehiculos', async (req, res) => {
 });
 
 app.get('/api/novedades-cadetes', async (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  const fecha = req.query.fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   try {
     const resultado = await pool.query(`SELECT * FROM novedades_cadetes WHERE fecha = $1`, [fecha]);
     res.json(resultado.rows || []);
@@ -402,7 +402,7 @@ app.get('/api/novedades-cadetes', async (req, res) => {
 
 app.post('/api/novedades-cadetes', async (req, res) => {
   const { persona_id, fecha, estado, observacion, registrado_por } = req.body;
-  const fechaHoy = fecha || new Date().toISOString().split('T')[0];
+  const fechaHoy = fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   try {
     await pool.query(`DELETE FROM novedades_cadetes WHERE persona_id = $1 AND fecha = $2`, [persona_id, fechaHoy]);
     await pool.query(
@@ -420,7 +420,7 @@ app.delete('/api/novedades-cadetes/:id', async (req, res) => {
     await pool.query(`DELETE FROM novedades_cadetes WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -512,7 +512,7 @@ app.delete('/api/personas/:id', async (req, res) => {
 });
 
 app.get('/api/libro-guardia', async (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().split('T')[0];
+  const fecha = req.query.fecha || new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
   const sql = `SELECT * FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id DESC`;
   try {
     const resultado = await pool.query(sql, [`${fecha}%`]);
@@ -525,8 +525,9 @@ app.get('/api/libro-guardia', async (req, res) => {
 app.post('/api/libro-guardia', async (req, res) => {
   const { puesto, accion, protagonista, detalle, rubro } = req.body;
   const now = new Date();
-  const hora = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const fechaCompleta = `${now.toISOString().split('T')[0]} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const hora = now.toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hour12: false });
+  const fechaLocal = now.toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const fechaCompleta = `${fechaLocal} ${hora}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const sql = `
     INSERT INTO libro_guardia (hora, fecha_completa, puesto, accion, protagonista, detalle, rubro, estado, notificado_wa, con_retardo)
@@ -557,7 +558,7 @@ app.post('/api/libro-guardia/marcar-enviados', async (req, res) => {
 });
 
 app.get('/api/fuerza-presente', async (req, res) => {
-  const hoy = `${new Date().toISOString().split('T')[0]}%`;
+  const hoy = `${new Date().toLocaleDateString('es-CA', { timeZone: 'America/Argentina/Buenos_Aires' })}%`;
   const sql = `SELECT protagonista, accion, detalle FROM libro_guardia WHERE fecha_completa LIKE $1 ORDER BY id ASC`;
 
   try {

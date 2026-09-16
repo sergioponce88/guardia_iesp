@@ -20,24 +20,33 @@ const pool = new Pool({
 
 // Función centralizada para importar y sincronizar LEO IESP2.xlsx de forma automática y segura
 async function sincronizarLeoIesp2() {
-  const posiblesNombres = ['LEO IESP2.xlsx', 'LEO IESP2', 'LEO IESP2.XLSX'];
+  const posiblesRutas = [
+    'LEO IESP2.xlsx', 
+    'LEO IESP2', 
+    'LEO IESP2.XLSX', 
+    path.join(__dirname, 'LEO IESP2.xlsx'),
+    path.join(__dirname, 'public', 'LEO IESP2.xlsx'),
+    path.join(__dirname, 'public', 'LEO IESP2')
+  ];
+  
   let archivoEncontrado = null;
 
-  for (const nombre of posiblesNombres) {
-    if (fs.existsSync(nombre)) {
-      archivoEncontrado = nombre;
+  for (const ruta of posiblesRutas) {
+    if (fs.existsSync(ruta)) {
+      archivoEncontrado = ruta;
       break;
     }
   }
 
   if (!archivoEncontrado) {
-    console.log('> Aviso: No se encontró el archivo LEO IESP2 en el servidor.');
+    console.log('> Aviso: No se encontró el archivo LEO IESP2 ni en la raíz ni en public.');
     return;
   }
 
   try {
     const workbookLeo = XLSX.readFile(archivoEncontrado);
-    let countActualizados = 0;
+    let countRoll = 0;
+    let countVehiculos = 0;
 
     // 1. Procesar Hoja ROLL DE COMBATE (Oficiales y Suboficiales)
     let hojaRoll = workbookLeo.Sheets['ROLL DE COMBATE'] || workbookLeo.Sheets[workbookLeo.SheetNames[0]];
@@ -62,9 +71,11 @@ async function sincronizarLeoIesp2() {
               `INSERT INTO personas (dni, nombre_completo, jerarquia_rol, cargo_chapa) VALUES ('S/D', $1, $2, $3)`,
               [nombreCompleto, grado, cargoChapa]
             );
+            countRoll++;
           }
         }
       }
+      console.log(`> Importados ${countRoll} registros de Roll de Combate.`);
     }
 
     // 2. Procesar Hoja VEHÍCULOS y asociar al personal
@@ -95,11 +106,11 @@ async function sincronizarLeoIesp2() {
               [nombre, grado || 'Personal', vehiculo, dominio]
             );
           }
-          countActualizados++;
+          countVehiculos++;
         }
       }
+      console.log(`> Sincronizados ${countVehiculos} vehículos.`);
     }
-    console.log(`> Sincronización automática de LEO IESP2 completada (${countActualizados} vehículos procesados).`);
   } catch (err) {
     console.error('Error al sincronizar LEO IESP2:', err);
   }
